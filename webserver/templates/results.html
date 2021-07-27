@@ -77,7 +77,7 @@
                 {% set fileData = analysisObject.fileData[j] %}
                 {% for k in range(fileData["results"][i]|length) %}
                     <tr>
-                        <td>{{pathSplit(analysisObject.fileList[i])[1]}}</td>
+                        <td>{{pathSplit(analysisObject.fileList[j])[1]}}</td>
                         {% for res in fileData["results"][i][k] %}
                             <td>{{res}}</td>
                         {% endfor %}

@@ -45,7 +45,7 @@ class LinearBackground(Background):
     def get_variances(self):
         return self.variances
     def set_variances(self, variances):
-        self.slopeVar, self.intVar = variances
+        self.variances = variances
     def get_original_params(self):
         return self.originalParams
     def set_original_params(self, params):
@@ -75,6 +75,146 @@ class LinearBackground(Background):
         y2 = float(entry[3])
         self.slope = float((y2-y1) / (x2 - x1))
         self.intercept = float(y1 - self.slope * x1)
+    
+class QuadraticBackground(Background):
+    def __init__(self, a, b, c, variances = [None, None, None]):
+        super().__init__()
+        self.a = a
+        self.b = b
+        self.c = c
+        self.variances = variances
+        self.originalParams = [a, b, c]
+        self.originalVariances = variances
+    @staticmethod
+    def guess_params(xdata, ydata):
+        lowerIndex = int(np.where(ydata == min(ydata[:len(xdata)//2]))[0][0])
+        upperIndex = int(np.where(ydata == min(ydata[len(xdata)//2:]))[-1][-1])
+        x1 = xdata[lowerIndex]
+        y1 = ydata[lowerIndex]
+        x2 = xdata[upperIndex]
+        y2 = ydata[upperIndex]
+        b = float((y2-y1) / (x2 - x1))
+        c = float(y1 - b * x1)
+        return QuadraticBackground(0, b, c)
+
+    @staticmethod
+    def get_entry_fields():
+        return ["Point 1 Energy", "Point 2 Energy"]
+
+    def get_type(self):
+        return "quadratic"
+
+    def get_num_params(self):
+        return 3
+    
+    #Getters and Setters
+    def get_params(self):
+        return [self.a, self.b, self.c]
+    def set_params(self, newParams):
+        self.a, self.b, self.c = newParams
+    def get_variances(self):
+        return self.variances
+    def set_variances(self, variances):
+        self.variances = variances
+    def get_original_params(self):
+        return self.originalParams
+    def set_original_params(self, params):
+        self.originalParams = list(params)
+    def get_original_variances(self):
+        return self.originalVariances
+    def set_original_variances(self, variances):
+        self.originalVariances = list(variances)
+    
+    #Model Methods
+    def get_ydata(self, xdata):
+        xdata = np.array(xdata)
+        return self.a * xdata ** 2 + self.b * xdata + self.c
+    
+    def get_ydata_with_params(self,xdata,params):
+        xdata = np.array(xdata)
+        return params[0] * xdata ** 2 + params[1] * xdata + params[2]
+    
+    #I/O Methods
+    def to_string(self):
+        return "Quadratic: "+round(float(self.a), sigfigs=4, notation='scientific')+"x**2 + "+round(float(self.b), sigfigs=4, notation='scientific') + "x + "+round(float(self.c), sigfigs=4, notation='scientific')
+    
+    def handle_entry(self, entry):
+        x1 = float(entry[0])
+        y1 = float(entry[1])
+        x2 = float(entry[2])
+        y2 = float(entry[3])
+        self.a = 0
+        self.b = float((y2-y1) / (x2 - x1))
+        self.c = float(y1 - self.a * x1)
+
+class ArctanBackground(Background):
+    """y = a * arctan(b*(x-c)) + d"""
+    def __init__(self, a, b, c, variances = [None, None, None]):
+        super().__init__()
+        self.a = a
+        self.b = b
+        self.c = c
+        self.variances = variances
+        self.originalParams = [a, b, c]
+        self.originalVariances = variances
+    @staticmethod
+    def guess_params(xdata, ydata):
+        b = (xdata[0] + xdata[-1])/2
+        lowerIndex = int(np.where(ydata == min(ydata[:len(xdata)//2]))[0][0])
+        upperIndex = int(np.where(ydata == min(ydata[len(xdata)//2:]))[-1][-1])
+        c = (ydata[lowerIndex] + ydata[upperIndex]) / 2
+        a = -1 * (ydata[lowerIndex] - ydata[upperIndex]) / math.pi
+        return ArctanBackground(a,b,c)
+    @staticmethod
+    def get_entry_fields():
+        return ["Point 1 Energy", "Point 2 Energy"]
+
+    def get_type(self):
+        return "arctan"
+
+    def get_num_params(self):
+        return 3
+    
+    #Getters and Setters
+    def get_params(self):
+        return [self.a, self.b, self.c]
+    def set_params(self, newParams):
+        self.a, self.b, self.c = newParams
+    def get_variances(self):
+        return self.variances
+    def set_variances(self, variances):
+        self.variances = variances
+    def get_original_params(self):
+        return self.originalParams
+    def set_original_params(self, params):
+        self.originalParams = list(params)
+    def get_original_variances(self):
+        return self.originalVariances
+    def set_original_variances(self, variances):
+        self.originalVariances = list(variances)
+    
+    #Model Methods
+    def get_ydata(self, xdata):
+        xdata = np.array(xdata)
+        return np.array([self.a * math.atan(x - self.b) + self.c for x in xdata])
+    
+    def get_ydata_with_params(self,xdata,params):
+        xdata = np.array(xdata)
+        res = np.array([params[0] * math.atan(x - params[1]) + params[2] for x in xdata])
+        return res
+    
+    #I/O Methods
+    def to_string(self):
+        return "Arctan: "+round(float(self.a), sigfigs=4, notation='scientific')+"arctan(x-" +round(float(self.b), sigfigs=4, notation='scientific')+")) + " +round(float(self.c), sigfigs=4, notation='scientific')
+    
+    def handle_entry(self, entry):
+        x1 = float(entry[0])
+        y1 = float(entry[1])
+        x2 = float(entry[2])
+        y2 = float(entry[3])
+        self.a = -1 * abs(y1 - y2) / math.pi
+        self.b = (x1 + x2) / 2
+        self.c = (y1 + y2) / 2
     
 
 class GaussianPeak(StandardPeak):
@@ -134,6 +274,9 @@ class GaussianPeak(StandardPeak):
 
     def get_area_stdev(self):
         return self.get_area() * math.sqrt((self.ampVar/self.amp)**2+(self.widVar/self.wid)**2)
+    
+    def get_fwhm(self):
+        return round(float(self.wid * 2 * math.sqrt(math.log(2))), decimals=2)
 
     def get_ydata(self, xdata):
         xdata = np.array(xdata)
@@ -226,6 +369,9 @@ class KuboSakaiBoronPeak(BoronPeak):
 
     def get_area_stdev(self):
         return math.sqrt(self.variances[1])
+    
+    def get_fwhm(self):
+        return "N/A"
 
     def get_ydata(self, xdata):
         decayConstant = 9.49516685699
@@ -290,4 +436,58 @@ class KuboSakaiBoronPeak(BoronPeak):
     
     def to_string(self):
         return "Boron Peak, Center "+str(round(float(self.E0), decimals=1))+" keV, Area "+str(round(float(self.N0), decimals=1))
+
+class ApproxBoronPeak(BoronPeak):
+    def __init__(self, ctr=477.6, amp = 1, wid=7.5, slope=1, variances = [None, None, None, None]):
+        super().__init__()
+        self.ctr = ctr
+        self.amp = amp
+        self.wid = wid
+        self.slope = slope
+        self.originalParams = [ctr, amp, wid, slope]
+        self.variances = variances
+        self.originalVariances = variances
+    @staticmethod
+    def guess_params(xdata, ydata):
+        pass
+    @staticmethod
+    def remove_from_data(xdata, ydata):
+        newYData = deepcopy(ydata)
+        startIndex = binary_search_find_nearest(xdata, 477.6)
+        curIndex = startIndex
+        minVal = min(ydata)
+        while xdata[curIndex] < 487.6:
+            toSub = min(xdata[curIndex], xdata[2*startIndex - curIndex]) - minVal
+            newYData[curIndex] -= toSub
+            newYData[2*startIndex - curIndex] -= toSub
+            curIndex += 1
+        return newYData
+    @staticmethod
+    def get_entry_fields():
+        return ["Center (keV)", "Max Amplitude"]
+
+    def get_type(self):
+        return "approx_boron"
+
+    def get_num_params(self):
+        return 4
     
+    #Getters and Setters
+    def get_params(self):
+        return [self.ctr, self.amp, self.wid, self.slope]
+    def set_params(self, params):
+        self.ctr, self.amp, self.wid, self.slope = params
+    def get_variances(self):
+        return self.variances
+    def set_variances(self, variances):
+        self.variances = variances
+    def get_original_params(self):
+        return self.originalParams
+    def set_original_params(self, params):
+        self.originalParams = list(params)
+    def get_original_variances(self):
+        return self.originalVariances
+    def set_original_variances(self, variances):
+        self.originalVariances = list(variances)
+    def get_ctr(self):
+        return self.ctr

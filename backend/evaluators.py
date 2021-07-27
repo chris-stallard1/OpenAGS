@@ -56,7 +56,7 @@ class MassSensEval(Evaluator):
     @staticmethod
     def get_headings(ROI):
         output = ROI.get_peak_pairs()[0][1].get_output()
-        return ["Isotope", "Peak Centroid (keV)"] + [output, output + " St. Dev"]
+        return ["Isotope", "Peak Centroid (keV)", "Peak Area (cps)", "FWHM Width (keV)"] + [output, output + " St. Dev"]
 
     def get_results(self):
         results = []
@@ -64,5 +64,5 @@ class MassSensEval(Evaluator):
             for p in r.get_peak_pairs():
                 peak_results = p[1].get_results(p[0].get_area(), p[0].get_area_stdev())
                 formatted_results = [round(float(peak_results[0]), uncertainty = 2 * float(peak_results[1]), sep=list)[0], round(float(peak_results[1]), sigfigs = 3)]
-                results.append([p[1].get_ele(), round(float(p[0].get_ctr()), decimals=2), *formatted_results])
+                results.append([p[1].get_ele(), round(float(p[0].get_ctr()), decimals=2), round(float(p[0].get_area()), decimals=2), p[0].get_fwhm(), *formatted_results])
         return results

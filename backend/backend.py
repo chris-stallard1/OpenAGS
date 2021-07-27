@@ -148,7 +148,7 @@ class ActivationAnalysis:
             if removed == len(isotopes):
                 rmvLst.append(r)
             elif removed > 0:
-                editList += [kp.get_ctr() for kp in r.get_known_peaks]
+                editList += [kp.get_ctr() for kp in r.get_known_peaks()]
         
         for r in rmvLst:
             self.ROIs.remove(r)
@@ -242,8 +242,8 @@ class ActivationAnalysis:
                     lowerIndex = binary_search_find_nearest(energies, bounds[0])
                     upperIndex = binary_search_find_nearest(energies, bounds[1])
                     r.reanalyze(energies[lowerIndex:upperIndex], cps[lowerIndex:upperIndex])
-            self.fileData[i]["results"] = [e(self.ROIs).get_results(*args) for e, args in zip(evaluators, e_args)]
-            self.fileData[i]["resultHeadings"] = [e.get_headings(self.ROIs[0]) for e in evaluators]
+            self.fileData[i]["results"] = [e(ROIsToEval).get_results(*args) for e, args in zip(evaluators, e_args)]
+            self.fileData[i]["resultHeadings"] = [e.get_headings(ROIsToEval[0]) for e in evaluators]
             self.fileData[i]["evaluatorNames"] = [e.get_name() for e in evaluators]
         self.resultsGenerated = True
         return None
@@ -384,7 +384,8 @@ class ROI:
                 variances = np.diag(cov)
                 set_all_params(self.peaks, self.bg, params, variances, reanalyze)
                 self.fitted = True
-            except:
+            except Exception as e:
+                print(e)
                 self.fitted = False
                 pass
     
@@ -392,7 +393,7 @@ class ROI:
         """Get the output of our fit (ydata) given x values"""
         if xdata == None:
             xdata = np.arange(self.range[0], self.range[-1], .01)
-        return [list(xdata), get_curve(self.peaks, self.bg, xdata)]
+        return [list(xdata), get_curve(self.peaks, self.bg, xdata), list(self.bg.get_ydata(xdata))]
 
     def get_closest_peak(self, kp):
         """Find the closest peak in our data to a given known peak. Works well for auto matching."""

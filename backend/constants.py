@@ -1,4 +1,4 @@
-from models import LinearBackground, GaussianPeak, KuboSakaiBoronPeak
+from models import LinearBackground, QuadraticBackground, ArctanBackground, GaussianPeak, KuboSakaiBoronPeak
 
 #Default user preferences, to be changed from settings tab
 default_prefs = {
@@ -14,7 +14,9 @@ default_prefs = {
 som = {
     "backgrounds":
     {
-        "linear":LinearBackground
+        "linear":LinearBackground,
+        "quadratic":QuadraticBackground,
+        "arctan" : ArctanBackground
     },
     "peaks":
     {

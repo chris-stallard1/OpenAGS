@@ -93,6 +93,10 @@ class Peak(Model):
         """Returns the standard deviation of the area under this peak"""
         pass
 
+    @abstractmethod
+    def get_fwhm(self):
+        """Returns a formatted FWHM width for the peak, or "N/A" if the peak doesn't have a FWHM"""
+
     #Getters and Setters
 
     @abstractmethod

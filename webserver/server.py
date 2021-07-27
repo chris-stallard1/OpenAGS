@@ -286,7 +286,7 @@ async def ws(projectID):
                     outputObj["curveX"] = curve[0]
                     outputObj["curveY"] = curve[1]
                     outputObj["peakX"] = ROI.get_peak_ctrs()
-                    outputObj["backgroundY"] = list(ROI.get_background().get_ydata(ROI.get_range()))
+                    outputObj["backgroundY"] = curve[2]
 
                 data = json.dumps(outputObj)   
 
@@ -402,4 +402,4 @@ serverConfig = Config()
 serverConfig.bind=["0.0.0.0:80"]
 
 #asyncio.run(serve(app, serverConfig))
-app.run(host='0.0.0.0',port=80)
+app.run(host='127.0.0.1',port=8000)

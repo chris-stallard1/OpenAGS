@@ -108,7 +108,7 @@ ws.onmessage = function (event) {
                     name : "Peaks" 
                 }
                 var bgTrace = {
-                    x : data.ROIRange,
+                    x : data.curveX,
                     y : data.backgroundY,
                     mode : "lines",
                     name : "Background"
@@ -306,4 +306,14 @@ function sendMatchUpdate(i,j){
         "newValue" : newValue
     };
     ws.send(JSON.stringify(outputObj));
+}
+
+function confirmSubmission(){
+    if(window.unfittedRegions.length > 0){
+        document.getElementById("confirmWarningText").innerText = "Unfitted Regions: ("+window.unfittedRegions.map(x => x+1).toString()+")";
+    }
+    else{
+        document.getElementById("confirmWarningText").innerText = "";
+    }
+    showModal('confirmSubmitModal');
 }

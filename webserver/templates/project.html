@@ -166,8 +166,7 @@
               <h5 class="modal-title">Confirm Match Submission</h5>
             </div>
             <div class="modal-body">
-              <p id="confirmWarningText"></p>
-              <br>
+              <p id="confirmWarningText" style="color:red;"></p>
               <p>If you have matched all peaks and would like to proceed, click "Submit". If you have opened this in error click "Close" to return to the analysis.</p>
             </div>
             <div class="modal-footer">
@@ -295,8 +294,8 @@
                             var fittedXY = {{analysisObject.ROIs[i].get_fitted_curve()}};
                             var range = [fittedXY[0][0],fittedXY[0][fittedXY[0].length-1]]
                             var bgTrace = {
-                                x : range,
-                                y : {{analysisObject.ROIs[i].get_background().get_ydata(analysisObject.ROIs[i].get_range())|list}},
+                                x : fittedXY[0],
+                                y : fittedXY[2],
                                 mode : "lines",
                                 name : "Background"
                             };
@@ -363,7 +362,7 @@
                     <img src="/icons/chevron-double-left.svg" id="chev_d_left"  class="navImage" onmouseover="addBdr(this);" onmouseout = "remBdr(this);" onClick="toBotEnd()"/>
                 </div>
                 <div class="col-4">
-                    <button id="viewResults" class="btn btn-primary" onclick="showModal('confirmSubmitModal')">View Results</button>
+                    <button id="viewResults" class="btn btn-primary" onclick="confirmSubmission()">View Results</button>
                 </div>
         </div>
     </div>
