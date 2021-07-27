@@ -1,4 +1,4 @@
-
+//unintended but incredibly smart solution that uses ws:// if we are on http, but wss:// if we are on https
 var wsUrl = window.location.href.toString().replace("http","ws").replace("edit","ws");
 var ws = new WebSocket(wsUrl);
 ws.onmessage = function (event) {

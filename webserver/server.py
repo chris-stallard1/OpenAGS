@@ -1,7 +1,6 @@
 from quart import Quart, request, redirect, url_for, render_template, send_file, websocket, make_response
 import asyncio
-from hypercorn.config import Config
-from hypercorn.asyncio import serve
+from hypercorn.middleware import HTTPToHTTPSRedirectMiddleware
 from werkzeug.utils import secure_filename
 import aiofiles
 import aiofiles.os
@@ -398,8 +397,5 @@ async def export_to_db():
         if a != None:
             a.cancel()
         await saveProjectNow(projectID)
-serverConfig = Config()
-serverConfig.bind=["0.0.0.0:80"]
 
-#asyncio.run(serve(app, serverConfig))
-app.run(host='127.0.0.1',port=8000)
+redirectedApp = HTTPToHTTPSRedirectMiddleware(app, host="openags.cstallar.net")
