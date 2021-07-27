@@ -179,14 +179,16 @@
     <div id = "container">
         <div class="container-flex" style="width:98vw;">
             <div id="topbar" class="row">
+                <div class="col-1">
+                    <img src="/icons/OpenAGS_Logo.png" width="90" height="20" onclick="window.location.replace('/create');"/>
+                </div>
                 <div class="col-2">
                     <input type="text" id="cdTitle" class="form-control" onfocusout="updateTitle();" value="{{analysisObject.title}}"/>
                 </div>
                 <div class="col-6">
                     <button class="btn btn-secondary" onclick="window.location.replace(window.location.href.replace('edit', 'view'));">Back to Spectrum View</button>
                 </div>
-                <div class="col-4">
-                </div>
+                <div class="col-3"></div>
             </div>
             <div class="row">
         <div id="mainCarousel" class="carousel slide" data-ride="carousel">

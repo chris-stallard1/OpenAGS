@@ -342,10 +342,13 @@
           </div>
         <div class="container-flex" style="width:98vw;">
         <div id="topbar" class="row">
+            <div class="col-1">
+                <img src="/icons/OpenAGS_Logo.png" width="90" height="20" onclick="window.location.replace('/create');"/>
+            </div>
             <div class="col-2">
                 <input type="text" id="cdTitle" class="form-control" onfocusout="updateTitle();" value="{{analysisObject.title}}"/>
             </div>
-            <div class="col-6">
+            <div class="col-4">
                 <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#updateROIModal">Add/Edit ROIs</button>
                 {% if analysisObject.delayed %}
                     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#timeEntryModal">Edit Time Values</button>
@@ -354,7 +357,7 @@
                     <button class="btn btn-secondary" onclick="window.location.replace(window.location.href.replace('view', 'results'));">View Results</button>
                 {% endif %}
             </div>
-            <div class="col-4">
+            <div class="col-5">
                 <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#updatePrefsModal">Settings</button>
                 <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">Delete Project</button>
             </div>
