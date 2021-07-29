@@ -1,9 +1,12 @@
-import xylib
-from util import KnownPeak
 import re
+import os
+
+import xylib
 import numpy as np
 from openpyxl import Workbook
-import os
+
+from util import KnownPeak
+
 
 class SpectrumParser:
     """Parser for all Spectrum file formats"""
@@ -16,21 +19,16 @@ class SpectrumParser:
     def getValues(self):
         if self.speFile:
             #Reader specifically for SPE files from Genie
-            self.spectrumfile = open(self.fname)
-            text = self.spectrumfile.read()
-            self.spectrumfile.close()
-            l = text.split('$')[1:]
-            sections = dict()
-            for section in l:
-                sp = section.split('\n',1)
-                sections[sp[0]] = sp[1]
-            livetime, realtime = sections["MEAS_TIM:"].strip().split(" ")
+            with open(self.fname) as f:
+                text = f.read()
+            sections = dict(section.split('\n', 1) for section in text.split('$')[1:])
+            livetime, realtime = sections["MEAS_TIM:"].strip().split()
             livetime = float(livetime)
             realtime = float(realtime)
-            startind, endind = sections["DATA:"].split("\n")[0].split(" ")
+            startind, endind = sections["DATA:"].split("\n")[0].split()
             data = sections["DATA:"].split("\n")[1:-1]
             data = [int(i) for i in data]
-            intercept, slope = sections["ENER_FIT:"].strip().split(" ")[:2]
+            intercept, slope = sections["ENER_FIT:"].strip().split()[:2]
             intercept = float(intercept)
             slope = float(slope)
             energies = [intercept + i*slope for i in range(int(startind),int(endind)+1)]
@@ -41,10 +39,7 @@ class SpectrumParser:
             d = xylib.load_file(self.fname, '')
             block = d.get_block(0)
             meta = block.meta
-            metaDict = {}
-            for i in range(meta.size()):
-                key = meta.get_key(i)
-                metaDict[key] = meta.get(key)
+            metaDict = {meta.get_key(i) : meta.get(meta.get_key(i)) for i in range(meta.size())}
             ncol = block.get_column_count()
             nrow = block.get_point_count()
             data = [[block.get_column(i).get_value(j) for j in range(nrow)] for i in range(1, ncol+1)]
@@ -54,15 +49,16 @@ class SpectrumParser:
 
 class StandardsFileParser:
     """Parser for standards files with peak locations, sensitivities, etc."""
-    def __init__(self,fname=""):
-        self.file = open(fname, "r")
+    def __init__(self,fname: str):
+        self.fname = fname
         self.peaks = None
     def extract_peaks(self, delayed):
         if self.peaks != None:
             return self.peaks
-        lines = self.file.readlines()
+        with open(self.fname) as f:
+            lines = f.readlines()
         headings = re.sub(r'[^\x00-\x7F]+','', lines[0]).strip().split(",") #Eliminate non-ASCII characters
-        lines = [l.split(",") for l in lines[1:]]
+        lines = [line.split(",") for line in lines[1:]]
         try:
             peakIndex = headings.index("Energy (keV)")
             isoIndex = headings.index("Isotope")
@@ -123,8 +119,6 @@ class StandardsFileParser:
             else:
                 for i in range(len(self.peaks)):
                     self.peaks[i].set_NAA_params(halfLife = lines[i][halfLifeIndex], unit=decayUnit)
-            
-        self.file.close()
         return self.peaks
 
 class CSVWriter:
@@ -138,16 +132,15 @@ class CSVWriter:
         self.headings = headings
         self.data = data
     def write(self):
-        f = open(self.fname, "w")
-        f.seek(0)
-        f.write(",".join(self.headings)+"\n")
-        for line in self.data:
-            try:
-                ld = [str(e) for e in line[0]]
-            except:
-                ld = [str(e) for e in line]
-            f.write(','.join(ld)+"\n")
-        f.close()
+        with open(self.fname, "w") as f:
+            f.seek(0)
+            f.write(",".join(self.headings)+"\n")
+            for line in self.data:
+                try:
+                    ld = [str(e) for e in line[0]]
+                except:
+                    ld = [str(e) for e in line]
+                f.write(','.join(ld)+"\n")
 
 class ExcelWriter:
     def __init__(self, projectID, projectTitle, allFilenames, headings, data):

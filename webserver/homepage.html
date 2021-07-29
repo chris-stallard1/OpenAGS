@@ -23,14 +23,24 @@
   <body>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js" integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf" crossorigin="anonymous"></script>
     <h3 class="mt">Welcome to OpenAGS</h3>
+    <b>
+        This website is for testing purposes only. Any data stored on this site may be deleted at any time for any reason. 
+        The server itself may also go offline at any time and for any length of time, to apply fixes or add features. 
+        Please let me know of any issues you encounter under the “issues” section of 
+        <a href="https://github.com/chris-stallard1/OpenAGS">https://github.com/chris-stallard1/OpenAGS</a>.
+    </b>
     <div class="card card-body">
         <p>Create a new project <a href="/create">here</a>
-            , watch the tutorial video below, 
-            or read the feature information/specs below.
+            , restore from a download <a href="/restore">here</a>, 
+            watch the tutorial video below, or read the feature information/specs below.
         </p>
-        <h5 class="mt">Tutorial Video</h5>
-        <iframe width="560" height="315" src="https://www.youtube.com/embed/jRw5pBawPpM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-        
+        <button class="mt btn btn-secondary w-25" data-bs-toggle="collapse" data-bs-target="#tutorialVid">Tutorial Video</button>
+        <div class="collapse" id="tutorialVid">
+            <iframe class="mt" width="560" height="315" src="https://www.youtube.com/embed/jRw5pBawPpM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        </div>
+
+        <button class="btn btn-secondary w-25 mt" data-bs-toggle="collapse" data-bs-target="#additionalInfo">Specs and Info</button>
+        <div class="collapse" id="additionalInfo">
         <h5 class="mt">Sensitivity File Format Example (.csv file)</h5>
         <div class="card card-body">
             <p>Note: Half-Life or Decay Constant are only necessary for NAA. They will be ignored for PGAA.</p>
@@ -89,5 +99,6 @@
             <li class="list-group-item">Freiberg Instruments XSYG (from lexsyg)</li>
             <li class="list-group-item">Bruker SPC/PAR</li>
         </ul>
+    </div>
     </div>
   </body>

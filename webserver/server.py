@@ -1,7 +1,7 @@
 from quart import Quart, request, redirect, url_for, render_template, send_file, websocket, make_response
 import asyncio
 from hypercorn.middleware import HTTPToHTTPSRedirectMiddleware
-from werkzeug.utils import secure_filename
+from werkzeug.utils import secure_filename, escape
 import aiofiles
 import aiofiles.os
 
@@ -39,23 +39,85 @@ async def get_icon(icon_name):
 #Static Pages
 @app.route("/")
 async def homepage():
-    async with aiofiles.open(os.path.join(os.getcwd(),'homepage.html'), mode='r') as f:
+    async with aiofiles.open(os.path.join(os.getcwd(),'homepage.html'), mode='rb') as f:
         contents = await f.read()
     return contents
 
 @app.route("/error")
 async def errorpage():
-    async with aiofiles.open(os.path.join(os.getcwd(),'error.html'), mode='r') as f:
+    async with aiofiles.open(os.path.join(os.getcwd(),'error.html'), mode='rb') as f:
         contents = await f.read()
     return contents
 
 #Dynamic but not Jinja Templates
+@app.route("/restore", methods=["GET","POST"])
+async def restore():
+    if request.method == "GET":
+        async with aiofiles.open(os.path.join(os.getcwd(),'restore.html'), mode='rb') as f:
+            contents = await f.read()
+        return contents
+    else:
+        upload_path = os.path.join(os.getcwd(), "uploads")
+        projectID = str(uuid.uuid4())
+        #TODO: aiofiles.os.mkdir not working for some reason. Debug this
+        
+        os.mkdir(os.path.join(upload_path,projectID))
+        os.mkdir(os.path.join(os.getcwd(), "results", projectID))
 
+        uploaded_files = await request.files 
+        form = await request.form
+
+        newFilenames = []
+
+        spectrumFiles = uploaded_files.getlist("spectrumFiles")
+        try:
+            standardsFile = uploaded_files.get("standardsFile")
+            standardsFilename = os.path.join(upload_path,projectID,secure_filename(standardsFile.filename))
+            newFilenames.append(standardsFilename)
+            await standardsFile.save(standardsFilename)
+        except Exception:
+            pass
+    
+        for f in spectrumFiles:
+            p = os.path.join(upload_path,projectID,secure_filename(f.filename))
+            newFilenames.append(p)
+            await f.save(p)
+
+        stateless = form.get("stateless") == "true"
+
+        stateFile = await uploaded_files.get("stateFile")
+        stateDict = json.loads(stateFile.read())
+        stateDict["files"] = newFilenames
+        async with aiofiles.open(os.path.join(upload_path, projectID, "state.json"), "w") as f:
+            await f.write(json.dumps(stateDict))
+
+        currentProject = stateDict
+        analysisObject = ActivationAnalysis()
+        await loop.run_in_executor(None, analysisObject.load_from_dict, currentProject)
+        activeProjects[projectID] = {
+            "analysisObject" : analysisObject,
+            "webSockets" : [],
+            "numUsers" : 0,
+            "stateless" : stateless,
+            "saveAction" : None
+        }
+        return json.dumps({"id" : projectID})
+
+@app.route("/stateUpload", methods=["POST"])
+async def handleStateUpload():
+    files = await request.files
+    stateFile = files.get("stateFile")
+    stateDict = json.loads(stateFile.read())
+    if stateDict["standardsFilename"] != str(os.path.join(os.getcwd(), "AllSensitivity.csv")):
+        standardsFilename = os.path.split(stateDict["standardsFilename"])[1]
+    else:
+        standardsFilename = ""
+    return json.dumps({"filenames" : [os.path.split(f)[1] for f in stateDict["files"]], "sensFile" : standardsFilename})
 @app.route("/create", methods=["GET","POST"])
 async def create():
     """Handles GET requests (static page) and POST requests (file uploads/form submissions) for the create project page"""
     if request.method == "GET":
-        async with aiofiles.open(os.path.join(os.getcwd(),'create.html'), mode='r') as f:
+        async with aiofiles.open(os.path.join(os.getcwd(),'create.html'), mode='rb') as f:
             contents = await f.read()
         return contents
     else:
@@ -86,12 +148,13 @@ async def create():
         
         #check analysis type
         delayed = form.get("analysisType") == "delayed"
+        stateless = form.get("stateless") == "true"
 
         #initialize state file
         async with aiofiles.open(os.path.join(os.getcwd(), "uploads", projectID, "state.json"), mode="w") as f:
             await f.seek(0)
             await f.write(json.dumps({
-                "title" : form["title"],
+                "title" : escape(form["title"]),
                 "files" : filenamesList,
                 "standardsFilename" : standardsFilename,
                 "ROIsFitted" : False,
@@ -100,6 +163,19 @@ async def create():
                 "delayed" : delayed,
                 "NAATimes" : [[] for i in range(len(filenamesList))]
             }))
+
+        async with aiofiles.open(os.path.join(upload_path, projectID, "state.json")) as f:
+            contents = await f.read()
+            currentProject = json.loads(contents)
+            analysisObject = ActivationAnalysis()
+            await loop.run_in_executor(None, analysisObject.load_from_dict, currentProject)
+            activeProjects[projectID] = {
+                "analysisObject" : analysisObject,
+                "webSockets" : [],
+                "numUsers" : 0,
+                "stateless" : stateless,
+                "saveAction" : None
+            }
         return json.dumps({"id" : projectID})
 
 @app.route("/results/<projectID>/<filename>")
@@ -116,7 +192,7 @@ async def serve_result(projectID, filename):
     except:
         #otherwise, generate it
         global activeProjects
-        if projectID in activeProjects.keys(): #if its loaded in memory
+        if projectID in activeProjects: #if its loaded in memory
             analysisObject = activeProjects[projectID]["analysisObject"]
         else: #load from state
             async with aiofiles.open(os.path.join(os.getcwd(),"uploads", projectID, "state.json"), mode="r") as f:
@@ -133,9 +209,19 @@ async def serve_result(projectID, filename):
 
 @app.route("/projects/<projectID>/<action>")
 async def project(projectID, action):
+    if action == "state":
+        async with aiofiles.open(os.path.join(os.getcwd(), "uploads", projectID, "state.json")) as f:
+            contents = await f.read()
+            return contents, 200, {'Content-Disposition' : 'attachment; filename="state.json"'}
+    elif action == "archive":
+        await loop.run_in_executor(None, shutil.make_archive, os.path.join(os.getcwd(), "tmp", projectID), "zip", os.path.join(os.getcwd(), "uploads", projectID))
+        async with aiofiles.open(os.path.join(os.getcwd(), "tmp", projectID)+".zip", "rb") as f:
+            contents = await f.read()
+            return contents, 200, {'Content-Disposition' : 'attachment; filename="'+projectID+'.zip"'}
+
     global activeProjects
     analysisObject = None
-    if projectID in activeProjects.keys(): #if the project is loaded
+    if projectID in activeProjects: #if the project is loaded
         analysisObject = activeProjects[projectID]["analysisObject"]
     else: #load the project from the state.json file
         async with aiofiles.open(os.path.join(os.getcwd(),"uploads",projectID,"state.json"), mode="r") as f:
@@ -147,26 +233,20 @@ async def project(projectID, action):
                 "analysisObject" : analysisObject,
                 "webSockets" : [],
                 "numUsers" : 0,
+                "stateless" : False,
                 "saveAction" : None
             }
     
     if action == "edit":
         if not analysisObject.ROIsFitted:
-            analysisObject.get_fitted_ROIs()
+            analysisObject.fit_ROIs()
         return await(render_template("project.html", analysisObject=analysisObject, projectID=projectID, pathSplit=os.path.split))
     elif action == "view":
         return await(render_template("view.html", analysisObject=analysisObject, projectID=projectID, som=som, pathSplit=os.path.split))
     elif action == "results":
         return await(render_template("results.html", analysisObject=analysisObject, projectID=projectID, pathSplit=os.path.split))
     elif action == "delete":
-        p1 = os.path.join(os.getcwd(), "results", projectID)
-        if os.path.exists(p1):
-            shutil.rmtree(p1)
-        p2 = os.path.join(os.getcwd(), "uploads", projectID)
-        if os.path.exists(p2):
-            shutil.rmtree(p2)
-        activeProjects[projectID]["saveAction"].cancel()
-        del activeProjects[projectID]
+        await deleteProjectNow(projectID)
         return redirect("/create")
     else: 
         return ""
@@ -178,7 +258,7 @@ async def saveProject(projectID):
     await asyncio.sleep(60)
     print("saving "+projectID)
     global activeProjects
-    if projectID not in activeProjects.keys():
+    if projectID not in activeProjects:
         return None
     async with aiofiles.open(os.path.join(os.getcwd(),"uploads",projectID,"state.json"), mode="w") as f:
         await f.seek(0)
@@ -190,11 +270,36 @@ async def saveProjectNow(projectID):
     """Quicksave function"""
     print("saving "+projectID)
     global activeProjects
-    if projectID not in activeProjects.keys():
+    if projectID not in activeProjects:
         return None
     async with aiofiles.open(os.path.join(os.getcwd(),"uploads",projectID,"state.json"), mode="w") as f:
         await f.seek(0)
         await f.write(json.dumps(activeProjects[projectID]["analysisObject"].export_to_dict()))
+
+async def deleteProject(projectID):
+    """Delete function, used for stateless projects"""
+    await asyncio.sleep(300)
+    p1 = os.path.join(os.getcwd(), "results", projectID)
+    if os.path.exists(p1):
+        shutil.rmtree(p1)
+    p2 = os.path.join(os.getcwd(), "uploads", projectID)
+    if os.path.exists(p2):
+        shutil.rmtree(p2)
+    if activeProjects[projectID]["saveAction"] != None:
+        activeProjects[projectID]["saveAction"].cancel()
+    del activeProjects[projectID]
+
+async def deleteProjectNow(projectID):
+    """Delete function, used for all projects"""
+    p1 = os.path.join(os.getcwd(), "results", projectID)
+    if os.path.exists(p1):
+        shutil.rmtree(p1)
+    p2 = os.path.join(os.getcwd(), "uploads", projectID)
+    if os.path.exists(p2):
+        shutil.rmtree(p2)
+    if activeProjects[projectID]["saveAction"] != None:
+        activeProjects[projectID]["saveAction"].cancel()
+    del activeProjects[projectID]
 
 #WebSocket Handler function
 
@@ -209,7 +314,7 @@ async def ws(projectID):
     async def producer(projectID):
         global activeProjects
         queue = asyncio.Queue()
-        if projectID not in activeProjects.keys():
+        if projectID not in activeProjects:
             #load project
             async with aiofiles.open(os.path.join(os.getcwd(),"uploads",projectID,"state.json"), mode="r") as f:
                 contents = await f.read()
@@ -220,11 +325,12 @@ async def ws(projectID):
                     "analysisObject" : analysisObject,
                     "webSockets" : [],
                     "numUsers" : 0,
+                    "stateless" : False,
                     "saveAction" : None
                 }
         activeProjects[projectID]["webSockets"].append(queue)
         activeProjects[projectID]["numUsers"] += 1
-        if activeProjects[projectID]["saveAction"] != None:#if we were going to save and remove the project, don't
+        if activeProjects[projectID]["saveAction"] != None: #if we were going to save and remove the project, don't
             activeProjects[projectID]["saveAction"].cancel()
         activeProjects[projectID]["saveAction"] = None
         print("save action cancelled")
@@ -245,10 +351,10 @@ async def ws(projectID):
                 analysisObject = activeProjects[projectID]["analysisObject"]
                 ROI = analysisObject.ROIs[dataDict["index"]]
                 ROI.fitted = False
-                if "newRange" in dataDict.keys():
+                if "newRange" in dataDict:
                     analysisObject.set_ROI_range(dataDict["index"],dataDict["newRange"])
                 #remove the peaks that were removed by the user
-                if "existingPeaks" in dataDict.keys():
+                if "existingPeaks" in dataDict:
                     peaks = ROI.get_peaks()
                     newPeaks = []
                     for peak in peaks:
@@ -256,13 +362,13 @@ async def ws(projectID):
                             newPeaks.append(peak)
                     ROI.set_peaks(newPeaks)
                 #add peaks added by the user
-                if "newPeaks" in dataDict.keys():
+                if "newPeaks" in dataDict:
                     for peak in dataDict["newPeaks"]:
                         peakType = peak[0]
                         peakParams = peak[1:]
                         ROI.peaks.append(som["peaks"][peakType](*peakParams))
                 #change the background if necessary
-                if "background" in dataDict.keys():
+                if "background" in dataDict:
                     bg = dataDict["background"]
                     bgType = bg[0]
                     bgParams = bg[1:]
@@ -321,19 +427,26 @@ async def ws(projectID):
             elif dataDict["type"] == "matchUpdate":
                 #Update peak matches by echoing to all users
                 for queue in activeProjects[projectID]["webSockets"]:
-                        await queue.put(data)
+                    await queue.put(data)
 
             elif dataDict["type"] == "titleUpdate":
                 #Update the title
                 analysisObject = activeProjects[projectID]["analysisObject"]
                 if dataDict["newTitle"] != analysisObject.get_title(): #make sure it changed
+                    dataDict["newTitle"] = escape(dataDict["newTitle"])
                     analysisObject.set_title(dataDict["newTitle"])
                     #Broadcast
                     for queue in activeProjects[projectID]["webSockets"]:
-                        await queue.put(data)
+                        await queue.put(json.dumps(dataDict))
             elif dataDict["type"] == "NAATimeUpdate":
                 #Update NAA Times (irradiation, wait time)
                 analysisObject = activeProjects[projectID]["analysisObject"]
+                corruptFlag = False
+                for t in dataDict["times"]:
+                    if type(t) != float and type(t) != int:
+                        corruptFlag = True #don't broadcast, corrupted data
+                if corruptFlag:
+                    continue
                 analysisObject.fileData[dataDict["fileIndex"]]["NAATimes"] = dataDict["times"]
                 #Broadcast
                 for queue in activeProjects[projectID]["webSockets"]:
@@ -384,18 +497,26 @@ async def ws(projectID):
     finally:
         activeProjects[projectID]["numUsers"] -= 1
         if activeProjects[projectID]["numUsers"] <= 0: # save project in 1 min if no one reconnects
-            print("started save action")
-            activeProjects[projectID]["saveAction"] = asyncio.create_task(saveProject(projectID))
+            print("started save/delete action")
+            if activeProjects[projectID]["stateless"]:
+                activeProjects[projectID]["saveAction"] = asyncio.create_task(deleteProject(projectID))
+            else:
+                activeProjects[projectID]["saveAction"] = asyncio.create_task(saveProject(projectID))
         consumer_task.cancel()
         producer_task.cancel()
 @app.after_serving
 async def export_to_db():
     global activeProjects
     #Save all the projects
-    for projectID in activeProjects.keys():
+    for projectID in activeProjects:
         a = activeProjects[projectID]["saveAction"]
         if a != None:
             a.cancel()
-        await saveProjectNow(projectID)
+        if activeProjects[projectID]["stateless"]:
+            await deleteProjectNow(projectID)
+        else:
+            await saveProjectNow(projectID)
 
 redirectedApp = HTTPToHTTPSRedirectMiddleware(app, host="openags.cstallar.net")
+
+app.run()

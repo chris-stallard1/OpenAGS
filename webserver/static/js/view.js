@@ -16,15 +16,15 @@ ws.onmessage = function (event) {
                 var removeButton = '<img class="rmv-btn" src="/icons/file-x.svg" onclick="removeIsotope('+"'"+isotope+"'"+')">';
                 newInnerHTML += "<li class='list-group-item w-50' id='"+isotope+"'>" + newElement + removeButton +"</li>";
             }
-            document.getElementById("selectedIsotopes").innerHTML = newInnerHTML;
+            document.getElementById("selectedIsotopes").innerHTML = DOMPurify.sanitize(newInnerHTML);
             var newSelectHTML = "";
             for(var i=0;i<data.ROIRanges.length;i++){
                 newSelectHTML += "<option value='"+data.ROIRanges[i][0]+","+data.ROIRanges[i][1]+","+data.ROIIndicies[i][0].toString()+","+data.ROIIndicies[i][1].toString()+"'>"+data.ROIRanges[i][0]+"-"+data.ROIRanges[i][1]+" keV ("+data.ROIIsotopes[i]+")</option>"
             }
             
-            document.getElementById("compRangeSelect").innerHTML = "<option selected value='custom'>Custom Range</option>" + newSelectHTML;
+            document.getElementById("compRangeSelect").innerHTML = DOMPurify.sanitize("<option selected value='custom'>Custom Range</option>" + newSelectHTML);
             for(var i=0;i<filesList.length;i++){
-                document.getElementById("zoomToRegion-"+i.toString()).innerHTML = "<option selected value=''>Whole Spectrum</option>" + newSelectHTML;
+                document.getElementById("zoomToRegion-"+i.toString()).innerHTML = DOMPurify.sanitize("<option selected value=''>Whole Spectrum</option>" + newSelectHTML);
             }
 
             break;
@@ -355,7 +355,7 @@ function addIsotope(isotope){
     newElement = "<p class='iso-label'>" + isotope  + "</p>"
     removeButton = '<img class="rmv-btn" src="/icons/file-x.svg" onclick="removeIsotope('+"'"+isotope+"'"+')">'
     var ufl = document.getElementById("selectedIsotopes");
-    ufl.innerHTML += "<li class='list-group-item w-50' id='"+isotope+"'>" + newElement + removeButton +"</li>";
+    ufl.innerHTML += DOMPurify.sanitize("<li class='list-group-item w-50' id='"+isotope+"'>" + newElement + removeButton +"</li>");
     document.getElementById("search-input").value = "";
     applyFilter();
 }

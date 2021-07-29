@@ -22,7 +22,7 @@ ws.onmessage = function (event) {
                 var output = data.output;
                 var bgData = [data.name].concat(data.params);
                 window.newBackgrounds[data.index] = bgData;
-                bgList.innerHTML = "<li class='list-group-item compact' id=\""+output+"\"><p class = 'bg-label'>"+output+"</p>";
+                bgList.innerHTML = DOMPurify.sanitize("<li class='list-group-item compact' id=\""+output+"\"><p class = 'bg-label'>"+output+"</p>");
             }
             break;
         case "ROIUpdate":
@@ -57,7 +57,7 @@ ws.onmessage = function (event) {
 
             //set new background
             var bgList = document.getElementById("fittedBgList-"+data.index.toString());
-            bgList.innerHTML = "<li class='list-group-item compact' id=\""+ data.bgString +"\"><p class = 'bg-label'>"+ data.bgString +"</p>";
+            bgList.innerHTML = DOMPurify.sanitize("<li class='list-group-item compact' id=\""+ data.bgString +"\"><p class = 'bg-label'>"+ data.bgString +"</p>");
             
             //set new peaks
             var peaksList = document.getElementById("fittedPeaksList-"+data.index.toString());
@@ -87,7 +87,7 @@ ws.onmessage = function (event) {
                         selectHTML += "<option value='"+data.peakX[k].toString()+"'>"+data.peakStrings[k]+"</option>"
                     }
                 }
-                matchSelects[j].innerHTML = selectHTML;
+                matchSelects[j].innerHTML = DOMPurify.sanitize(selectHTML);
             }
 
             var plot = document.getElementById("ROI-"+i.toString());
@@ -160,7 +160,7 @@ function updatePeakEntry(i){
     if(peakType !== "Select Peak Type"){
         window.entryFields["peaks"][peakType].forEach((field) => {newInnerHTML = newInnerHTML + "<li class='list-group-item'><p style='float:left;'>"+field+"</p><input class='form-control w-50 peak-entry' style='float:right;'/></li>"});
     }
-    peaksList.innerHTML = newInnerHTML;
+    peaksList.innerHTML = DOMPurify.sanitize(newInnerHTML);
 };
 
 /**

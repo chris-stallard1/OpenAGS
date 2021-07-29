@@ -1,16 +1,10 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Jun 16 11:43:52 2020
-
-@author: chris
-"""
-
-from numpy import NaN, Inf, arange, asarray, array
-import numpy as np
-import xylib
 from abc import ABC, abstractmethod
 import math
 import itertools
+
+import numpy as np
+from numpy import NaN, inf, arange, asarray
+import xylib
 from sigfig import round
 
 class KnownPeak:
@@ -61,12 +55,13 @@ class KnownPeak:
         self.elementName = d["ele"]
         self.center = d["ctr"]
 
-        if "divisor" in d.keys():
+        if "divisor" in d:
             self.divisor = d["divisor"]
             self.output = d["output"]
         
-        if "decayConstant" in d.keys():
+        if "decayConstant" in d:
             self.decayConstant = d["decayConstant"]
+        return self
 
     #Interesting functions: Do more than get or set but aren't inputs/outputs
 
@@ -174,7 +169,7 @@ def set_all_params(peaks, background, params, variances, reanalyze):
     leftCounter = 0
     rightCounter = background.get_num_params()
 
-    noVars = (variances[0] == np.inf) or (variances[0] == -1 * np.inf) #sometimes, variances cannot be determined
+    noVars = (variances[0] == inf) or (variances[0] == -1 * inf) #sometimes, variances cannot be determined
 
     background.set_params(params[leftCounter:rightCounter])
     if not noVars:

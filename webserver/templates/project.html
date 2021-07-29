@@ -79,6 +79,7 @@
     </style>
   </head>
   <body>
+    <script src="/static/js/purify.min.js"></script>
     <script src="/static/js/main.js"></script>
     <script src="/static/js/project.js"></script>
     <script>
@@ -127,7 +128,39 @@
           </div>
         </div>
     </div>
+    <div class="modal fade" id="downloadProjectModal" tabindex="-3" role="dialog" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="dlLabel">Download Project</h5>
+                </div>
+                <div class="modal-footer">
+                    <a href="/projects/{{projectID}}/state" class="btn btn-primary">Download State Only</a>
+                    <a href="/projects/{{projectID}}/archive" class="btn btn-primary">Download Entire Project</a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
 
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Deletion</h5>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the entire project?</p>
+            </div>
+            <div class="modal-footer">
+                <a href="/projects/{{projectID}}/state" class="btn btn-primary">Download State Only</a>
+                <a href="/projects/{{projectID}}/archive" class="btn btn-primary">Download Entire Project</a>
+                <a class="btn btn-danger" href="/projects/{{projectID}}/delete">Delete Project</a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+            </div>
+        </div>
+        </div>
     <div class="modal fade" tabindex="-1" data-bs-backdrop="static" id="refreshPageModal">
         <div class="modal-dialog">
           <div class="modal-content">
@@ -188,7 +221,11 @@
                 <div class="col-6">
                     <button class="btn btn-secondary" onclick="window.location.replace(window.location.href.replace('edit', 'view'));">Back to Spectrum View</button>
                 </div>
-                <div class="col-3"></div>
+                <div class="col-3">
+                    <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#downloadProjectModal">Download Project</button>
+                    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">Delete Project</button>
+                
+                    </div>
             </div>
             <div class="row">
         <div id="mainCarousel" class="carousel slide" data-ride="carousel">
@@ -338,6 +375,7 @@
                                 title: "Counts Per Second"
                             }
                         };
+                        console.log(data);
                         Plotly.newPlot("ROI-{{i}}", data, layout, universalPlotConfig);
                     </script>
                 {% endfor %}

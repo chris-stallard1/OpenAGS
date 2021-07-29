@@ -8,14 +8,11 @@
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6" crossorigin="anonymous">
     <style>
-        .file-label{
-            float:left;
-        }
-        .rmv-btn{
-            float:right;
-        }
         li{
             height:2.5em;
+        }
+        ul {
+            list-style-type: none;
         }
         html{
             margin-left:10px;
@@ -42,7 +39,6 @@
           </div>
         </div>
     </div>
-
     <div class="modal fade" id="statelessAcknowledgement" tabindex="-3" role="dialog" aria-hidden="true">
         <div class="modal-dialog" role="document">
           <div class="modal-content">
@@ -75,35 +71,20 @@
           </div>
         </div>
     </div>
-    
-    <h3 class="mt">Create Project</h3>
-    <label for="titleInput">Title</label>
-    <input type="text" class="form-control w-50" id="titleInput" placeholder="">
-    <label>Analysis Type</label>
-    <div class="form-check">
-        <input class="form-check-input" type="radio" name="flexRadioDefault" id="PGAACheck" checked>
-        <label class="form-check-label" for="PGAACheck">
-          PGAA
-        </label>
-    </div>
-    <div class="form-check">
-        <input class="form-check-input" type="radio" name="flexRadioDefault" id="NAACheck">
-        <label class="form-check-label" for="NAACheck">
-          NAA
-        </label>
-    </div>
-    <label for="uploadedFilesList" class="mt">Upload Spectrum Files</label>
-    <ul class="list-group" id="uploadedFilesList"></ul>
-    <input type="file" class="form-control w-25" id="filesUpload" onchange="updateFileList(this)" multiple/>
-    <label for="standardsFileUpload">Upload Sensitivity Table</label>
-    <input type="file" class="form-control w-25" id="standardsFileUpload"/>
-    <div class="form-check">
+    <h5 class="mt">Step 1: Upload State File (state.json)</h5>
+    <label for="stateFileUpload">Upload State File</label>
+    <input type="file" class="form-control w-25" id="stateFileUpload"/>
+    <button type="button" id="restore_btn" class="btn btn-secondary mt" onclick="uploadStateFile()">Upload</button>
+
+    <h5 class="mt">Step 2: Upload other files</h5>
+    <ul id="requiredFiles"></ul>
+    <div class="form-check" id="statelessInput" style="display:none;">
         <input class="form-check-input" type="checkbox" value="" id="statelessCheck" onchange="updateAckModal()" checked>
         <label class="form-check-label" for="statelessCheck">
           Stateless project
         </label>
     </div>
-    <button type="button" id="create_btn" class="btn btn-secondary mt" data-bs-toggle="modal" data-bs-target="#statelessAcknowledgement">Create</button>
+    <button id="submitFiles" class="btn btn-primary mt" data-bs-toggle="modal" data-bs-target="#statelessAcknowledgement" style="display:none;">Submit</button>
     <div id="progress_wrapper" class="d-none mt">
         <label id="progress_status"></label>
         <div class="progress mb-3 w-50">
@@ -126,80 +107,22 @@
                 document.getElementById("statelessInfo").style.display = "none";
             }
         }
-        currentFilesList = []
-        function updateFileList(uploadElement){
-            if ('files' in uploadElement) {
-                for(var i=0;i<uploadElement.files.length;i++){
-                    var file = uploadElement.files[i];
-                    currentFilesList.push(file);
-                    newElement = "<p class='file-label'>" + file.name + " , " + Math.ceil(file.size / 1000) +"kB" + "</p>"
-                    removeButton = '<img class="rmv-btn" src="/icons/file-x.svg" onclick="removeFile('+"'"+file.name+"'"+')">'
-                    var ufl = document.getElementById("uploadedFilesList");
-                    ufl.innerHTML += "<li class='list-group-item w-50' id='"+file.name+"'>" + newElement + removeButton +"</li>";
-                }
-            }
-            uploadElement.value = null;
-        }
-        function removeFile(name){
-            document.getElementById(name).remove();
-            for(var i=0;i<currentFilesList.length;i++){
-                if(currentFilesList[i].name === name){
-                    currentFilesList.splice(i,1);
-                    break;
-                }
-            }
-        }
-        function uploadFiles(){
-            if(currentFilesList.length === 0){
-                return showErrorMessage("Please Add Spectrum Files.");
-            }
+        function uploadStateFile(){
             var data = new FormData();
             var request = new XMLHttpRequest();
-            var cancel_btn = document.getElementById("cancel_btn");
-            var progress_status = document.getElementById("progress_status");
-            var url = window.location.href;
-
-            cancel_btn.classList.remove("d-none");
-            document.getElementById("progress_wrapper").classList.remove("d-none");
-            document.getElementById("create_btn").classList.add("d-none");
+            var url = window.location.href.replace("restore", "stateUpload");
 
             request.responseType = "json";
-            for(var i=0;i<currentFilesList.length;i++){
-                data.append("file",currentFilesList[i]);
-            }
 
-            if(document.getElementById("titleInput").value === ""){
-                data.append("title", "Untitled");
+            if(document.getElementById("stateFileUpload").files.length === 0){
+                return showErrorMessage("Choose a State File")
+            }
+            else if(document.getElementById("stateFileUpload").files[0].name !== "state.json"){
+                return showErrorMessage("Please upload only state.json files")
             }
             else{
-                data.append("title", document.getElementById("titleInput").value);
+                data.append("stateFile", document.getElementById("stateFileUpload").files[0]);
             }
-
-            if(document.getElementById("standardsFileUpload").files[0] == null){
-                if(!document.getElementById("PGAACheck").checked){
-                    reset();
-                    return showErrorMessage("NAA Analyses must provide sensitivity tables.");
-                }
-                data.append("standardsFile", "");
-            }
-            else{
-                data.append("standardsFile", document.getElementById("standardsFileUpload").files[0]);
-            }
-
-            if(document.getElementById("PGAACheck").checked){
-                data.append("analysisType", "prompt");
-            }
-            else{
-                data.append("analysisType", "delayed");
-            }
-
-            if(document.getElementById("statelessCheck").checked){
-                data.append("stateless", "true")
-            }
-            else{
-                data.append("stateless", "false")
-            }
-            
 
             request.upload.addEventListener("progress", function (e) {
                 var loaded = e.loaded;
@@ -212,27 +135,105 @@
 
             request.addEventListener("load", function (e) {
                 if (request.status == 200) {
-                    window.location.replace("/projects/"+request.response["id"]+"/view")
+                    window.filesToUpload = request.response["filenames"];
+                    window.sensFile = request.response["sensFile"];
+                    var listElement = document.getElementById("requiredFiles");
+                    for(var i=0;i<window.filesToUpload.length;i++){
+                        if(i===0){
+                            listElement.innerHTML += "<li><label for='fileInput-" + i.toString() + "'>" + window.filesToUpload[i] + "</label><input type='file' class='form-control w-25' id='fileInput-" + i.toString() + "'/></li>";
+                        }
+                        else{
+                            listElement.innerHTML += "<li style='margin-top:2em;'><label for='fileInput-" + i.toString() + "'>" + window.filesToUpload[i] + "</label><input type='file' class='form-control w-25' id='fileInput-" + i.toString() + "'/></li>";
+                        }
+                    }
+                    if(window.sensFile !== ""){
+                        listElement.innerHTML += "<li style='margin-top:2em;'><label for='sensFile'>Sensitivity Table (" + window.sensFile + ")</label><input type='file' class='form-control w-25' id='sensFile'/></li>";
+                    }
+                    document.getElementById("stateFileUpload").disabled = true;
+                    document.getElementById("submitFiles").style.display = "";
+                    document.getElementById("statelessInput").style.display = "";
                 }
-                reset();
-            });
-
-
-            request.addEventListener("abort", function (e) {
                 reset();
             });
             
             request.open("post", url);
             request.send(data);
+        }
+        function uploadFiles(){
+            var data = new FormData();
+            var request = new XMLHttpRequest();
+            var cancel_btn = document.getElementById("cancel_btn");
+            var progress_status = document.getElementById("progress_status");
+            var url = window.location.href;
+
+            cancel_btn.classList.remove("d-none");
+            document.getElementById("progress_wrapper").classList.remove("d-none");
+            document.getElementById("restore_btn").classList.add("d-none");
+
+            request.responseType = "json";
+
+            if(document.getElementById("stateFileUpload").files.length === 0){
+                return showErrorMessage("Choose a State File")
+            }
+            else if(document.getElementById("stateFileUpload").files[0].name !== "state.json"){
+                return showErrorMessage("Please upload only state.json files")
+            }
+            else{
+                data.append("stateFile", document.getElementById("stateFileUpload").files[0]);
+            }
+
+            for(var i=0;i<window.filesToUpload.length;i++){
+                var fileObject = document.getElementById("fileInput-"+i.toString()).files;
+                if(fileObject.length === 0){
+                    reset();
+                    return showErrorMessage("No Input: Wanted "+window.filesToUpload[i])
+                }
+                var uploadedName = fileObject[0].name;
+                if(uploadedName !== window.filesToUpload[i]){
+                    reset();
+                    return showErrorMessage("File Mismatch: Wanted " + window.filesToUpload[i] + ", Got "+uploadedName+".");
+                }
+                data.append("spectrumFiles", fileObject);
+            }
+
+            if(document.getElementById("sensFile") !== null){
+                var fileObject = document.getElementById("sensFile").files;
+                if(fileObject.length === 0){
+                    reset();
+                    return showErrorMessage("No Input: Wanted "+window.sensFile)
+                }
+                var uploadedName = fileObject[0].name;
+                if(uploadedName !== window.sensFile){
+                    reset();
+                    return showErrorMessage("File Mismatch: Wanted " + window.sensFile + ", Got "+uploadedName+".");
+                }
+                data.append("standardsFile", fileObject);
+            }
+
+            if(document.getElementById("statelessCheck").checked){
+                data.append("stateless", "true")
+            }
+            else{
+                data.append("stateless", "false")
+            }
+
+            request.addEventListener("load", function (e) {
+                if (request.status == 200) {
+                    window.location.replace("/projects/"+request.response["id"]+"/view")
+                }
+            });
 
             cancel_btn.addEventListener("click", function () {
                 request.abort();
-            })
+            });
+
+            request.open("post", url);
+            request.send(data);
         }
         function reset(){
             document.getElementById("cancel_btn").classList.add("d-none");
             document.getElementById("progress_wrapper").classList.add("d-none");
-            document.getElementById("create_btn").classList.remove("d-none");
+            document.getElementById("submitFiles").classList.remove("d-none");
             document.getElementById("progress").setAttribute("style","width: 0%");
         }
         function showErrorMessage(msg){

@@ -1,13 +1,17 @@
-import numpy as np
-from scipy.optimize import curve_fit, OptimizeWarning
+import os
 import warnings
 import itertools
+
+import numpy as np
+from scipy.optimize import curve_fit, OptimizeWarning
+from sigfig import round
+
 from util import multiple_peak_and_background, get_curve, binary_search_find_nearest, set_all_params, KnownPeak
 from constants import default_prefs, som
 from parsers import SpectrumParser, StandardsFileParser, CSVWriter, ExcelWriter
 from models import GaussianPeak, LinearBackground
-from sigfig import round
-import os
+
+
 
 class ActivationAnalysis:
     """An application class representing the whole backend. 
@@ -15,24 +19,34 @@ class ActivationAnalysis:
     This is the ONLY backend class that the frontend should interact with.
 
     ----Variables----
-    userPrefs : User Preferences
-    fileData : Extracted contents and metadata from project files
-    fileList : List of spectrum filenames, data from each correlates to fileData
-    knownPeaks : dictionary mapping peak location to KnownPeak onjects
-    ROIs : Regions of Interest, see ROI class below
-    isotopes: Isotopes being analyzed
-    title : Project Title
-    ROIsFitted: Whether all regions of interest for this project have been fitted
-    resultsGenerated : Whether evaluators have been run and results generated for this project
-    delayed : Whether or not this is a Delayed Gamma Analysis
-    """
+    #User Preferences
+    userPrefs: Dict[str, any] = None
+    #Extracted contents and metadata from project files
+    fileData: List[Dict[str, any]] = None
+    #List of spectrum filenames, data from each correlates to fileData
+    fileList: List[str] = None
+    #dictionary mapping peak location to KnownPeak onjects
+    knownPeaks: Dict[float, KnownPeak] = None
+    #Regions of Interest, see ROI class below
+    ROIs: List[ROI] = None
+    #Isotopes being analyzed
+    isotopes: List[str] = None
+    #Project Title
+    title: str
+    #Whether all regions of interest for this project have been fitted
+    ROIsFitted: bool
+    #Whether evaluators have been run and results generated for this project
+    resultsGenerated: bool
+    #Whether or not this is a Delayed Gamma Analysis
+    delayed: bool"""
+    
     def __init__(self, userPrefs = default_prefs, title = ""):
         self.userPrefs = userPrefs
-        self.fileData = []
-        self.fileList = []
-        self.knownPeaks = {}
-        self.ROIs = []
-        self.isotopes = []
+        self.fileData = None
+        self.fileList = None
+        self.knownPeaks = None
+        self.ROIs = None
+        self.isotopes = None
         self.title = title
         self.ROIsFitted = False
         self.resultsGenerated = False
@@ -41,21 +55,24 @@ class ActivationAnalysis:
     def load_from_dict(self, stored_data):
         """Sets variables for an analysis object based on a dictionary exported by the export_to_dict() function."""
 
-        if "userPrefs" in stored_data.keys(): #otherwise keep default prefs
+        if "userPrefs" in stored_data: #otherwise keep default prefs
             self.userPrefs = stored_data["userPrefs"]
         
         self.title = stored_data["title"]
-        self.add_files(stored_data["files"])
-        self.load_known_peaks(stored_data["standardsFilename"])
+        self._load_spectra(stored_data["files"])
+        self._load_known_peaks(stored_data["standardsFilename"])
         energies = self.fileData[0]["energies"]
         cps = self.fileData[0]["cps"]
+
         self.ROIsFitted = stored_data["ROIsFitted"]
+        self.ROIs = []
         for ROIData in stored_data["ROIs"]:
             lowerIndex = ROIData["indicies"][0]
             upperIndex = ROIData["indicies"][1]
             r = ROI(energies[lowerIndex:upperIndex], cps[lowerIndex:upperIndex], [lowerIndex, upperIndex])
             r.load_from_dict(ROIData)
             self.ROIs.append(r)
+
         self.isotopes = list(set(itertools.chain(*[r.get_isotopes() for r in self.ROIs])))
         self.resultsGenerated = stored_data["resultsGenerated"]
         if self.resultsGenerated:
@@ -63,8 +80,9 @@ class ActivationAnalysis:
                 self.fileData[i]["results"] = stored_data["results"][i]
                 self.fileData[i]["resultHeadings"] = stored_data["resultHeadings"]
                 self.fileData[i]["evaluatorNames"] = stored_data["evaluatorNames"]
+
         self.delayed = stored_data["delayed"]
-        if self.delayed and "NAATimes" in stored_data.keys():
+        if self.delayed and "NAATimes" in stored_data:
             for i in range(len(stored_data["NAATimes"])):
                 self.fileData[i]["NAATimes"] = stored_data["NAATimes"][i]
 
@@ -88,24 +106,26 @@ class ActivationAnalysis:
             outDict["resultHeadings"] = self.fileData[0]["resultHeadings"]
             outDict["evaluatorNames"] = self.fileData[0]["evaluatorNames"]
 
-        if self.delayed and "NAATimes" in self.fileData[0].keys():
+        if self.delayed and "NAATimes" in self.fileData[0]:
             outDict["NAATimes"] = [fd["NAATimes"] for fd in self.fileData]
             
         return outDict
 
-    def add_files(self, files):
+    def _load_spectra(self, files):
         """Parse and add the spectrum files specified in the files list"""
         self.fileList = files
         self.fileData = [SpectrumParser(f).getValues() for f in files]
 
-    def load_known_peaks(self, standardsFilename):
+    def _load_known_peaks(self, standardsFilename):
         """Parse and add known peaks from a standards file"""
         self.standardsFilename = standardsFilename
-        l = StandardsFileParser(standardsFilename).extract_peaks(self.delayed)
-        for p in l:
+        self.knownPeaks = {}
+        peakList = StandardsFileParser(standardsFilename).extract_peaks(self.delayed)
+        for p in peakList:
             c = p.get_ctr() # avoid collisions by changing the center by .01 eV in this dictionary, without affecting the actual object
-            while c in self.knownPeaks.keys():
+            while c in self.knownPeaks:
                 c += 0.00001
+                
             self.knownPeaks[c] = p
 
     def update_ROIs(self, addedIsotopes, removedIsotopes = []):
@@ -113,45 +133,36 @@ class ActivationAnalysis:
         
         This function can be used to create ROIs by calling it with only 1 argument.
         """
-        rmvLst = []
-        editList = []
-        alreadyAdded = []
 
-        if addedIsotopes == [] and removedIsotopes == []:
+        if not addedIsotopes and not removedIsotopes:
             #If we are told to do nothing, do nothing
-            return None
-        else:
-            #If we are doing anything, the new ROIs we create might not be fitted.
-            self.ROIsFitted = False
+            return
+
+        #If we are doing anything, the new ROIs we create might not be fitted.
+        self.ROIsFitted = False
 
         #ensure no duplicate additions
-        for iso in addedIsotopes:
-            if iso in self.isotopes:
-                alreadyAdded.append(iso)
-            else:
-                self.isotopes.append(iso)
+        addedIsotopes = [iso for iso in addedIsotopes if iso not in self.isotopes and iso in self.get_all_isotopes()]
+        self.isotopes.extend(addedIsotopes)
 
-        for iso in alreadyAdded:
-            addedIsotopes.remove(iso)
-
-        #remove isotopes that the user wanst to remove
+        #remove isotopes that the user wants to remove
         for iso in removedIsotopes:
             try:
                 self.isotopes.remove(iso)
-            except:
+            except ValueError: #if there is a duplicate, move on
                 pass
         
         #either remove ROIs completely or add to an "edit list" if some, but not all, isotopes in roi have been removed
+        editList, ROIs = [], []
         for r in self.ROIs:
             isotopes = r.get_isotopes()
-            removed = len([x for x in isotopes if x in removedIsotopes])
-            if removed == len(isotopes):
-                rmvLst.append(r)
-            elif removed > 0:
-                editList += [kp.get_ctr() for kp in r.get_known_peaks()]
-        
-        for r in rmvLst:
-            self.ROIs.remove(r)
+            filtered = [iso for iso in isotopes if iso not in removedIsotopes]
+            if filtered:
+                # some isotopes remaining after remove, so keep the ROI.
+                ROIs.append(r)
+                if len(filtered) < len(isotopes):
+                    editList.extend(kp.get_ctr() for kp in r.get_known_peaks)
+        self.ROIs = ROIs
 
         regions = []
         peaks = []
@@ -163,7 +174,7 @@ class ActivationAnalysis:
         for k in sortedKeys:
             p = self.knownPeaks[k]
             if p.get_ele() in addedIsotopes or p.get_ctr() in editList:
-                if p.get_ele() == "B-11": #special case for boron
+                if p.get_ele() == "B-11" and p.get_ctr() < 480 and p.get_ctr() > 470: #special case for boron
                     lowerBound = max(p.get_ctr() - self.userPrefs["B_roi_width"], 0)
                     upperBound = min(p.get_ctr() + self.userPrefs["B_roi_width"], self.fileData[0]["energies"][-1])
                 else:
@@ -174,7 +185,9 @@ class ActivationAnalysis:
                 regions.append(upperBound)
                 
                 peaks.append([p])
-                otherPeaks.append([self.knownPeaks[e] for e in sortedKeys[binary_search_find_nearest(sortedKeys, lowerBound):binary_search_find_nearest(sortedKeys, upperBound)]])
+                lowerIndex = binary_search_find_nearest(sortedKeys, lowerBound)
+                upperIndex = binary_search_find_nearest(sortedKeys, upperBound)
+                otherPeaks.append([self.knownPeaks[e] for e in sortedKeys[lowerIndex:upperIndex]])
 
         if self.userPrefs["overlap_rois"]:
             i=0
@@ -194,12 +207,13 @@ class ActivationAnalysis:
         for i in range(0,len(regions),2):
             lowerIndex = binary_search_find_nearest(energies, regions[i])
             upperIndex = binary_search_find_nearest(energies, regions[i+1])
-            r = ROI(energies[lowerIndex:upperIndex],cps[lowerIndex:upperIndex], [lowerIndex, upperIndex], "B-11" in [p.get_ele() for p in peaks[i//2]] and not self.delayed, self.userPrefs)
+            boronRegion = "B-11" in [p.get_ele() for p in peaks[i//2]] and not self.delayed and regions[i] < 477.6 and regions[i+1] > 477.6
+            r = ROI(energies[lowerIndex:upperIndex],cps[lowerIndex:upperIndex], [lowerIndex, upperIndex], boronRegion, self.userPrefs)
             r.set_known_peaks(peaks[i//2], otherPeaks[i//2])
             self.ROIs.append(r)
         self.ROIs = sorted(self.ROIs, key=lambda x:x.get_range()[0])
 
-    def get_fitted_ROIs(self):
+    def fit_ROIs(self):
         """Fits all ROIs that aren't fitted: convenience function that calls several functions on each unfitted ROI."""
         for ROI in self.ROIs:
             if not ROI.fitted:
@@ -246,9 +260,9 @@ class ActivationAnalysis:
             self.fileData[i]["resultHeadings"] = [e.get_headings(ROIsToEval[0]) for e in evaluators]
             self.fileData[i]["evaluatorNames"] = [e.get_name() for e in evaluators]
         self.resultsGenerated = True
-        return None
+
     def write_results_file(self, projectID, filename):
-        """Writes a results file, format/spec depends on the filename of the request.txt
+        """Writes a results file, format/spec depends on the filename of the request.
 
         Implements ExcelWriter to write results and CSVWriter to write results or spectrum file data.
         """
@@ -259,16 +273,16 @@ class ActivationAnalysis:
             ew.write()
         elif filename[-21:] == "_Analysis_Results.csv":
             origFilename = filename.replace("_Analysis_Results.csv","")
-            for i in range(len(self.fileList)):
-                if os.path.split(self.fileList[i])[1].split('.')[0] == origFilename:
-                    cw = CSVWriter(projectID, filename, self.fileData[i]["resultHeadings"][0], self.fileData[i]["results"])
+            for filename, fileData in zip(self.fileList, self.fileData):
+                if os.path.split(filename)[1].split('.')[0] == origFilename:
+                    cw = CSVWriter(projectID, filename, fileData["resultHeadings"][0], fileData["results"])
                     cw.write()
                     break
-        else:
+        elif filename[-7:] == "_xy.csv":
             origFilename = filename.replace("_xy.csv","")
-            for i in range(len(self.fileList)):
-                if os.path.split(self.fileList[i])[1].split('.')[0] == origFilename:
-                    cw = CSVWriter(projectID, filename, ["Energy (keV)", "Counts Per Second"], zip(self.fileData[i]["energies"], self.fileData[i]["cps"]))
+            for filename, fileData in zip(self.fileList, self.fileData):
+                if os.path.split(filename)[1].split('.')[0] == origFilename:
+                    cw = CSVWriter(projectID, filename, ["Energy (keV)", "Counts Per Second"], zip(fileData["energies"], fileData["cps"]))
                     cw.write()
                     break
     #Getters and Setters
@@ -276,7 +290,7 @@ class ActivationAnalysis:
         self.fileData[i]["NAATimes"] = [irr, wait, count]
         
     def get_all_isotopes(self):
-        return set([self.knownPeaks[key].get_ele() for key in self.knownPeaks.keys()])
+        return set(v.get_ele() for k, v in self.knownPeaks.items())
     
     def get_known_annots(self):
         return [[[kp.get_ctr(), kp.get_ele()] for kp in r.peaksInRegion] for r in self.ROIs]
@@ -285,11 +299,10 @@ class ActivationAnalysis:
         return [fd["NAATimes"] for fd in self.fileData]
     
     def get_unfitted_ROIs(self):
-        return [i for i in range(len(self.ROIs)) if not self.ROIs[i].fitted]
+        return [i for i, ROI in enumerate(self.ROIs) if not ROI.fitted]
     
     def set_user_prefs(self, newPrefs):
-        for k in newPrefs.keys():
-            self.userPrefs[k] = newPrefs[k]
+        self.userPrefs.update(newPrefs)
 
     def get_known_peaks(self):
         return self.knownPeaks
@@ -308,8 +321,8 @@ class ActivationAnalysis:
 
     def get_all_entry_fields(self):
         return {
-            "peaks" : {k : som["peaks"][k].get_entry_fields() for k in som["peaks"].keys()},
-            "backgrounds" : {k : som["backgrounds"][k].get_entry_fields() for k in som["backgrounds"].keys()}
+            "peaks" : {k : v.get_entry_fields() for k, v in som["peaks"].items()},
+            "backgrounds" : {k : v.get_entry_fields() for k, v in som["backgrounds"].items()}
         }
 
 
@@ -323,49 +336,46 @@ class ROI:
         self.userPrefs = userPrefs
         self.indicies = indicies
         self.peaks = []
+        self.bg = None
         self.peakPairs = None
         self.fitted = False
         self.boronROI = boronROI
 
     def load_from_dict(self, stored_data):
         """Sets variables for an ROI object based on a dictionary exported by the export_to_dict() function."""
-        if "peaks" in stored_data.keys():
+        if "peaks" in stored_data:
             self.peaks = [som["peaks"][p["type"]](*p["params"], variances=p["variances"]) for p in stored_data["peaks"]]
             self.bg = som["backgrounds"][stored_data["background"]["type"]](*stored_data["background"]["params"],variances=stored_data["background"]["variances"])
             self.fitted = (self.peaks[0].get_variances()[0] != None)
         else:
             self.fitted = False
-        for kp in stored_data["knownPeaks"]:
-            knownPeakObj = KnownPeak()
-            knownPeakObj.load_from_dict(kp)
-            self.knownPeaks.append(knownPeakObj)
+        
+        self.knownPeaks = [KnownPeak().load_from_dict(kp) for kp in stored_data["knownPeaks"]] 
     def export_to_dict(self):
         """Exports the current ROI state to a dictionary"""
         PIR = [p.export_to_dict() for p in self.peaksInRegion]
-        try:
-            exportPeaks = [{"type" : p.get_type(), "params" : p.get_original_params(), "variances": p.get_original_variances()} for p in self.peaks]
-            exportBackground = {"type" : self.bg.get_type(), "params" : self.bg.get_original_params(), "variances": self.bg.get_original_variances()}
-            exportKnownPeaks = [kp.export_to_dict() for kp in self.knownPeaks]
-            return {
-                "indicies" : self.indicies,
-                "peaks" : exportPeaks,
-                "background" : exportBackground,
-                "knownPeaks" : exportKnownPeaks,
-                "peaksInRegion" : PIR
-            }
-        except:
-            exportKnownPeaks = [kp.export_to_dict() for kp in self.knownPeaks]
-            return {
+        exportKnownPeaks = [kp.export_to_dict() for kp in self.knownPeaks]
+        outDict = {
                 "indicies" : self.indicies,
                 "knownPeaks" : exportKnownPeaks,
                 "peaksInRegion" : PIR
-            }
+        }
+
+        if self.bg != None:
+            outDict["peaks"] = [{"type" : p.get_type(), "params" : p.get_original_params(), "variances": p.get_original_variances()} for p in self.peaks]
+            outDict["background"] = {"type" : self.bg.get_type(), "params" : self.bg.get_original_params(), "variances": self.bg.get_original_variances()}
+            return outDict
+        else:
+            return outDict
+
     def add_peaks(self):
         """Find and add peaks to own model (guesss params)"""
         if self.boronROI:
             BPeak = som["peaks"][self.userPrefs["boron_peak_type"]]
             self.peaks = [BPeak.guess_params(self.energies, self.cps)]
-            self.peaks += som["peaks"][self.userPrefs["peak_type"]].guess_params(self.energies, BPeak.remove_from_data(self.energies, self.cps))
+            scrubbedCPS = BPeak.remove_from_data(self.energies, self.cps)
+            print(scrubbedCPS)
+            self.peaks += som["peaks"][self.userPrefs["peak_type"]].guess_params(self.energies, scrubbedCPS)
         else:
             self.peaks = som["peaks"][self.userPrefs["peak_type"]].guess_params(self.energies, self.cps)
    
@@ -395,33 +405,23 @@ class ROI:
             xdata = np.arange(self.range[0], self.range[-1], .01)
         return [list(xdata), get_curve(self.peaks, self.bg, xdata), list(self.bg.get_ydata(xdata))]
 
-    def get_closest_peak(self, kp):
-        """Find the closest peak in our data to a given known peak. Works well for auto matching."""
-        c = kp.get_ctr()
-        minSep = 99999
-        minPeak = None
-        for p in self.peaks:
-            if(abs(p.get_ctr() - c) < minSep):
-                minSep = abs(p.get_ctr() - c)
-                minPeak = p
-        return minPeak
+    def get_closest_peak(self, peak):
+        if len(self.peaks) == 0:
+            return None
+        target = peak.get_ctr()
+        distance = [abs(p.get_ctr() - target) for p in self.peaks]
+        index = np.argmin(distance)
+        return self.peaks[index]
     
     def set_original_peak_pairs(self, energyPairs):
         """Original peak pairs are set so that they don't change when the ROI is reanalyzed on new data and can be exported/imported easily."""
         pairs = []
-        for ep in energyPairs:
-            pair = []
-            for p in self.peaks:
-                if p.get_ctr() == ep[0]:
-                    pair.append(p)
-                    break
-            for kp in self.knownPeaks:
-                if kp.get_ctr() == ep[1]:
-                    pair.append(kp)
-                    break
-            pairs.append(pair)
-        self.peakPairs = pairs
-        self.originalPeakPairs = pairs
+        peakCtr = np.array([p.get_ctr() for p in self.peaks])
+        knownCtr = np.array([p.get_ctr() for p in self.knownPeaks])
+        nearest_peak = lambda target: self.peaks[np.argmin(abs(peakCtr-target))]
+        nearest_known = lambda target: self.knownPeaks[np.argmin(abs(knownCtr-target))]
+        pairs = [(nearest_peak(p), nearest_known(kp)) for p, kp in energyPairs]
+        self.peakPairs = self.originalPeakPairs = pairs
 
     def reanalyze(self, newEnergies, newCPS):
         """Re-runs the fit on a new set of energies and cps from another spectrum file, and re-match peaks"""
@@ -431,9 +431,11 @@ class ROI:
         self.cps = newCPS
         self.fit(True)
         outputs = []
-        for p in self.originalPeakPairs:
-            closestMatch = self.peaks[min(range(len(self.peaks)), key = lambda i: abs(self.peaks[i].get_ctr()-p[0].get_ctr()))]
-            outputs.append([closestMatch, p[1]])  
+        peakCtrs = np.array([p.get_ctr() for p in self.peaks])
+        for peak, knownPeak in self.originalPeakPairs:
+            target = peak.get_ctr()
+            closestMatch = self.peaks[np.argmin(peakCtrs - target)]
+            outputs.append([closestMatch, knownPeak])  
         self.peakPairs = outputs      
         return outputs
     

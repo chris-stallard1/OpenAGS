@@ -129,7 +129,7 @@ class BoronPeak(Peak):
     def remove_from_data(xdata, ydata):
         """Returns cleaned ydata with the influence fo the boron peak subtracted from it.
         
-        This is used because the Boron peka can often overshadow other peaks and make it harder for the peak finding function to work.
+        This is used because the Boron peak can often overshadow other peaks and make it harder for the peak finding function to work.
         Therefore, we subtract the boron peak from the data and find peaks in the resultant data.
         """
         pass

@@ -1,10 +1,12 @@
-from baseClasses import Peak, Background, StandardPeak, BoronPeak
 import math
-from util import binary_search_find_nearest
 from copy import deepcopy
+
 import numpy as np
 from scipy.signal import find_peaks_cwt, convolve
 from sigfig import round
+
+from baseClasses import Peak, Background, StandardPeak, BoronPeak
+from util import binary_search_find_nearest
 
 #Note: Docstrings for methods used here are in baseClasses.py
 
@@ -327,7 +329,7 @@ class KuboSakaiBoronPeak(BoronPeak):
         curIndex = startIndex
         minVal = min(ydata)
         while xdata[curIndex] < 487.6:
-            toSub = min(xdata[curIndex], xdata[2*startIndex - curIndex]) - minVal
+            toSub = min(ydata[curIndex], ydata[2*startIndex - curIndex]) - minVal
             newYData[curIndex] -= toSub
             newYData[2*startIndex - curIndex] -= toSub
             curIndex += 1
@@ -373,39 +375,19 @@ class KuboSakaiBoronPeak(BoronPeak):
     def get_fwhm(self):
         return "N/A"
 
+    #Equations for the next 2 functions from: doi.org/10.1007/s10967-007-0229-7, modified to use simple instead of complex gaussian IR function
     def get_ydata(self, xdata):
-        decayConstant = 9.49516685699
-        c = 3*10**8
-        v0=4.8*10**6
-        if xdata[1] - xdata[0] > .1:
-            step = (xdata[1] - xdata[0]) / 10
-        else:
-            step = (xdata[1] - xdata[0])
-        
-        DoGx = np.arange(xdata[0], xdata[-1]+.01, step)
-        DoG = c*self.N0/(2*self.E0*v0) * decayConstant / (decayConstant - self.D) * (1-(c*abs(DoGx-self.E0)/(self.E0*v0))**((decayConstant - self.D)/self.D))
-        for i in range(len(DoGx)):
-            if abs(DoGx[i] - self.E0) > 7.64:
-                DoG[i] = 0
-                
-        numSteps = int((xdata[0] + 5)//step)
-        start = xdata[0] - (numSteps * step)
-        DoG = np.concatenate((np.zeros(numSteps), DoG))
-
-        IRx = np.arange(start, 5, step)
-        IR = 1/(self.delta * math.sqrt(2*math.pi)) * math.e ** (-.5*(IRx/self.delta)**2) * step
-
-        convRes = convolve(DoG, IR)
-        if xdata[1] - xdata[0] > .1:
-            return convRes[len(IRx)//2 + numSteps:len(IRx)//2 + numSteps + len(DoGx):10]
-        else:
-            return convRes[len(IRx)//2 + numSteps:len(IRx)//2 + numSteps + len(DoGx)]
+        return self.get_ydata_with_params(xdata, self.get_params())
 
     def get_ydata_with_params(self, xdata, params):
-        E0, N0, D, delta = params
+        #Constants
+        #decay rate of Li-7*
         decayConstant = 9.49516685699
+        #Speed of Light
         c = 3*10**8
+        #Initial Velocity of Li-7*
         v0=4.8*10**6
+        E0, N0, D, delta = params
         step = (xdata[1] - xdata[0]) / 10
         DoGx = np.arange(xdata[0], xdata[-1]+.01, step)
         DoG = c*N0/(2*E0*v0) * decayConstant / (decayConstant - D) * (1-(c*abs(DoGx-E0)/(E0*v0))**((decayConstant - D)/D))
@@ -421,7 +403,6 @@ class KuboSakaiBoronPeak(BoronPeak):
         IR = 1/(delta * math.sqrt(2*math.pi)) * math.e ** (-.5*(IRx/delta)**2) * step
 
         convRes = convolve(DoG, IR)
-
         return convRes[len(IRx)//2 + numSteps:len(IRx)//2 + numSteps + len(DoGx):10]
 
     #I/O Methods
@@ -456,8 +437,8 @@ class ApproxBoronPeak(BoronPeak):
         startIndex = binary_search_find_nearest(xdata, 477.6)
         curIndex = startIndex
         minVal = min(ydata)
-        while xdata[curIndex] < 487.6:
-            toSub = min(xdata[curIndex], xdata[2*startIndex - curIndex]) - minVal
+        while xdata[curIndex] < 492.6:
+            toSub = min(ydata[curIndex], ydata[2*startIndex - curIndex]) - minVal
             newYData[curIndex] -= toSub
             newYData[2*startIndex - curIndex] -= toSub
             curIndex += 1
