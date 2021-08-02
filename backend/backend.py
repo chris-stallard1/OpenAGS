@@ -172,6 +172,7 @@ class ActivationAnalysis:
         sortedKeys = sorted(self.knownPeaks.keys())
 
         for k in sortedKeys:
+            print(k)
             p = self.knownPeaks[k]
             if p.get_ele() in addedIsotopes or p.get_ctr() in editList:
                 if p.get_ele() == "B-11" and p.get_ctr() < 480 and p.get_ctr() > 470: #special case for boron
@@ -204,6 +205,7 @@ class ActivationAnalysis:
 
         energies = self.fileData[0]["energies"]
         cps = self.fileData[0]["cps"]
+        print(regions)
         for i in range(0,len(regions),2):
             lowerIndex = binary_search_find_nearest(energies, regions[i])
             upperIndex = binary_search_find_nearest(energies, regions[i+1])
@@ -228,10 +230,10 @@ class ActivationAnalysis:
         if model == "peaks":
             testObj = som[model][name]()
             testObj.handle_entry(params, bounds=self.ROIs[ROIIndex].get_range())
-            return testObj.to_string(), testObj.get_params()
+            return str(testObj), testObj.get_params()
         elif model == "backgrounds":
             tmpObj = som[model][name].guess_params(self.ROIs[ROIIndex].get_energies(), self.ROIs[ROIIndex].get_cps())
-            return tmpObj.to_string(), tmpObj.get_params()
+            return str(tmpObj), tmpObj.get_params()
 
     def set_ROI_range(self, ROIIndex, newRange):
         """Set the range (of energy values) of the ROI at index ROIIndex to the values in values"""
@@ -351,6 +353,8 @@ class ROI:
             self.fitted = False
         
         self.knownPeaks = [KnownPeak().load_from_dict(kp) for kp in stored_data["knownPeaks"]] 
+        if "peakPairs" in stored_data:
+            self.peakPairs = self.originalPeakPairs = [(self.peaks[i], self.knownPeaks[j]) for i, j in stored_data["peakPairs"]]
     def export_to_dict(self):
         """Exports the current ROI state to a dictionary"""
         PIR = [p.export_to_dict() for p in self.peaksInRegion]
@@ -364,9 +368,9 @@ class ROI:
         if self.bg != None:
             outDict["peaks"] = [{"type" : p.get_type(), "params" : p.get_original_params(), "variances": p.get_original_variances()} for p in self.peaks]
             outDict["background"] = {"type" : self.bg.get_type(), "params" : self.bg.get_original_params(), "variances": self.bg.get_original_variances()}
-            return outDict
-        else:
-            return outDict
+        if self.peakPairs != None:
+            outDict["peakPairs"] = [(self.peaks.index(p), self.knownPeaks.index(kp)) for p, kp in self.originalPeakPairs]
+        return outDict
 
     def add_peaks(self):
         """Find and add peaks to own model (guesss params)"""
@@ -434,7 +438,7 @@ class ROI:
         peakCtrs = np.array([p.get_ctr() for p in self.peaks])
         for peak, knownPeak in self.originalPeakPairs:
             target = peak.get_ctr()
-            closestMatch = self.peaks[np.argmin(peakCtrs - target)]
+            closestMatch = self.peaks[np.argmin(abs(peakCtrs - target))]
             outputs.append([closestMatch, knownPeak])  
         self.peakPairs = outputs      
         return outputs

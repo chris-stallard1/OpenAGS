@@ -93,7 +93,11 @@ async def restore():
 
         currentProject = stateDict
         analysisObject = ActivationAnalysis()
-        await loop.run_in_executor(None, analysisObject.load_from_dict, currentProject)
+        try:
+            await loop.run_in_executor(None, analysisObject.load_from_dict, currentProject)
+        except Exception:
+            await deleteProjectNow(projectID)
+            return json.dumps({"id":"error"})
         activeProjects[projectID] = {
             "analysisObject" : analysisObject,
             "webSockets" : [],
@@ -105,14 +109,17 @@ async def restore():
 
 @app.route("/stateUpload", methods=["POST"])
 async def handleStateUpload():
-    files = await request.files
-    stateFile = files.get("stateFile")
-    stateDict = json.loads(stateFile.read())
-    if stateDict["standardsFilename"] != str(os.path.join(os.getcwd(), "AllSensitivity.csv")):
-        standardsFilename = os.path.split(stateDict["standardsFilename"])[1]
-    else:
-        standardsFilename = ""
-    return json.dumps({"filenames" : [os.path.split(f)[1] for f in stateDict["files"]], "sensFile" : standardsFilename})
+    try:
+        files = await request.files
+        stateFile = files.get("stateFile")
+        stateDict = json.loads(stateFile.read())
+        if stateDict["standardsFilename"] != str(os.path.join(os.getcwd(), "AllSensitivity.csv")):
+            standardsFilename = os.path.split(stateDict["standardsFilename"])[1]
+        else:
+            standardsFilename = ""
+        return json.dumps({"filenames" : [os.path.split(f)[1] for f in stateDict["files"]], "sensFile" : standardsFilename})
+    except Exception:
+        return json.dumps({"filenames" : "error"})
 @app.route("/create", methods=["GET","POST"])
 async def create():
     """Handles GET requests (static page) and POST requests (file uploads/form submissions) for the create project page"""
@@ -166,16 +173,20 @@ async def create():
 
         async with aiofiles.open(os.path.join(upload_path, projectID, "state.json")) as f:
             contents = await f.read()
-            currentProject = json.loads(contents)
-            analysisObject = ActivationAnalysis()
+        currentProject = json.loads(contents)
+        analysisObject = ActivationAnalysis()
+        try:
             await loop.run_in_executor(None, analysisObject.load_from_dict, currentProject)
-            activeProjects[projectID] = {
-                "analysisObject" : analysisObject,
-                "webSockets" : [],
-                "numUsers" : 0,
-                "stateless" : stateless,
-                "saveAction" : None
-            }
+        except Exception:
+            await deleteProjectNow(projectID)
+            return json.dumps({"id" : "error"})
+        activeProjects[projectID] = {
+            "analysisObject" : analysisObject,
+            "webSockets" : [],
+            "numUsers" : 0,
+            "stateless" : stateless,
+            "saveAction" : None
+        }
         return json.dumps({"id" : projectID})
 
 @app.route("/results/<projectID>/<filename>")
@@ -209,6 +220,12 @@ async def serve_result(projectID, filename):
 
 @app.route("/projects/<projectID>/<action>")
 async def project(projectID, action):
+    global activeProjects
+    if not os.path.exists(os.path.join(os.getcwd(),"uploads",projectID)) and projectID not in activeProjects:
+        async with aiofiles.open(os.path.join(os.getcwd(),"notfound.html")) as f:
+            contents = await f.read()
+            return contents
+
     if action == "state":
         async with aiofiles.open(os.path.join(os.getcwd(), "uploads", projectID, "state.json")) as f:
             contents = await f.read()
@@ -219,7 +236,6 @@ async def project(projectID, action):
             contents = await f.read()
             return contents, 200, {'Content-Disposition' : 'attachment; filename="'+projectID+'.zip"'}
 
-    global activeProjects
     analysisObject = None
     if projectID in activeProjects: #if the project is loaded
         analysisObject = activeProjects[projectID]["analysisObject"]
@@ -333,7 +349,6 @@ async def ws(projectID):
         if activeProjects[projectID]["saveAction"] != None: #if we were going to save and remove the project, don't
             activeProjects[projectID]["saveAction"].cancel()
         activeProjects[projectID]["saveAction"] = None
-        print("save action cancelled")
         while True:
             try:#listen on created queue, this works for broadcasting
                 data = await queue.get()
@@ -358,7 +373,7 @@ async def ws(projectID):
                     peaks = ROI.get_peaks()
                     newPeaks = []
                     for peak in peaks:
-                        if peak.to_string() in dataDict["existingPeaks"]:
+                        if str(peak) in dataDict["existingPeaks"]:
                             newPeaks.append(peak)
                     ROI.set_peaks(newPeaks)
                 #add peaks added by the user
@@ -382,8 +397,8 @@ async def ws(projectID):
                     "fitted" : ROI.fitted,
                     "xdata" : ROI.get_energies(),
                     "ydata" : ROI.get_cps(),
-                    "peakStrings" : [p.to_string() for p in ROI.get_peaks()],
-                    "bgString" : ROI.get_background().to_string(),
+                    "peakStrings" : [str(p) for p in ROI.get_peaks()],
+                    "bgString" : str(ROI.get_background()),
                     "ROIRange" : ROI.get_range()
                     }
                 if ROI.fitted:
@@ -404,12 +419,13 @@ async def ws(projectID):
                 entryParams = []
                 try:#test if inputs are floats
                     entryParams = [float(x) for x in dataDict["entryParams"]]
-                except:
+                except Exception:
                     await websocket.send(json.dumps({"type" : "error", "text":"Please enter only numbers for peak paramaters."}))
                     continue
                 try:#test if inputs are within  ROI bounds, and get results if so
                     stringRepr, params = analysisObject.get_entry_repr(dataDict["class"],dataDict["name"],dataDict["ROIIndex"],entryParams)
-                except:
+                except Exception as e:
+                    print(e)
                     await websocket.send(json.dumps({"type" : "error", "text":"Your peak is outside the ROI bounds."}))
                     continue #must continue instead of breaking because breaking kills the websocket
                 #prepare output
@@ -425,9 +441,10 @@ async def ws(projectID):
                 for queue in activeProjects[projectID]["webSockets"]:
                     await queue.put(json.dumps(outputObj))
             elif dataDict["type"] == "matchUpdate":
+                dataDict["newValue"] = escape(dataDict["newValue"])
                 #Update peak matches by echoing to all users
                 for queue in activeProjects[projectID]["webSockets"]:
-                    await queue.put(data)
+                    await queue.put(json.dumps(dataDict))
 
             elif dataDict["type"] == "titleUpdate":
                 #Update the title

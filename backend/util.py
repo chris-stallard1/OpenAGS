@@ -30,7 +30,7 @@ class KnownPeak:
             self.output = "Mass ("+unit+")"
         else:
             self.divisor = None
-            self.output = "Area (cps)"
+            self.output = "Peak Area (cps)"
         
         if halfLife != None and decayConstant != None:
             raise TypeError("Please provide no more than 1 of the following: half-life, decay constant")
@@ -127,7 +127,7 @@ class KnownPeak:
         
         return outDict
 
-    def to_string(self):
+    def __str__(self):
         """Returns a string representation of this peak as its element name concatenated with its pek centroid."""
         return self.elementName + " : " + str(round(float(self.center), decimals=1))
     

@@ -301,6 +301,7 @@ function submitMatches(){
 function sendMatchUpdate(i,j){
     var newValue = document.getElementById("userPeakMatches-"+i.toString()).getElementsByTagName('select')[j.toString()].value;
     var outputObj = {
+        "type" : "matchUpdate",
         "ROIIndex" : i,
         "matchIndex" : j,
         "newValue" : newValue

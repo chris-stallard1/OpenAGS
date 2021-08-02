@@ -2,7 +2,7 @@ import math
 from copy import deepcopy
 
 import numpy as np
-from scipy.signal import find_peaks_cwt, convolve
+from scipy.signal import find_peaks, convolve
 from sigfig import round
 
 from baseClasses import Peak, Background, StandardPeak, BoronPeak
@@ -67,7 +67,7 @@ class LinearBackground(Background):
         return params[0] * xdata + params[1]
     
     #I/O Methods
-    def to_string(self):
+    def __str__(self):
         return "Linear: Slope = "+round(float(self.slope), sigfigs=4, notation='scientific')+", Intercept = "+round(float(self.intercept), sigfigs=4, notation='scientific')
     
     def handle_entry(self, entry):
@@ -137,7 +137,7 @@ class QuadraticBackground(Background):
         return params[0] * xdata ** 2 + params[1] * xdata + params[2]
     
     #I/O Methods
-    def to_string(self):
+    def __str__(self):
         return "Quadratic: "+round(float(self.a), sigfigs=4, notation='scientific')+"x**2 + "+round(float(self.b), sigfigs=4, notation='scientific') + "x + "+round(float(self.c), sigfigs=4, notation='scientific')
     
     def handle_entry(self, entry):
@@ -206,7 +206,7 @@ class ArctanBackground(Background):
         return res
     
     #I/O Methods
-    def to_string(self):
+    def __str__(self):
         return "Arctan: "+round(float(self.a), sigfigs=4, notation='scientific')+"arctan(x-" +round(float(self.b), sigfigs=4, notation='scientific')+")) + " +round(float(self.c), sigfigs=4, notation='scientific')
     
     def handle_entry(self, entry):
@@ -237,7 +237,11 @@ class GaussianPeak(StandardPeak):
     
     @staticmethod
     def guess_params(xdata, ydata):
-        peaks = find_peaks_cwt(ydata, np.linspace(4,14,40))
+        step = xdata[1] - xdata[0]
+        prominence = max(.15 * (max(ydata) - min(ydata)), .01)
+        peaks, _ = find_peaks(ydata, width=math.floor(2/step), prominence = prominence)
+        if len(peaks) == 0:
+            peaks, _ = find_peaks(ydata, width=math.floor(2/step))
         return [GaussianPeak(xdata[p],ydata[p],1) for p in peaks]
     @staticmethod
     def get_entry_fields():
@@ -295,7 +299,7 @@ class GaussianPeak(StandardPeak):
         self.amp = float(entry[1])
         self.wid = 1
 
-    def to_string(self):
+    def __str__(self):
         return "Gaussian: Center " + str(round(float(self.ctr), decimals=1)) + " keV"
 
 class KuboSakaiBoronPeak(BoronPeak):
@@ -415,7 +419,7 @@ class KuboSakaiBoronPeak(BoronPeak):
         self.D = 2
         self.delta = 1.8
     
-    def to_string(self):
+    def __str__(self):
         return "Boron Peak, Center "+str(round(float(self.E0), decimals=1))+" keV, Area "+str(round(float(self.N0), decimals=1))
 
 class ApproxBoronPeak(BoronPeak):

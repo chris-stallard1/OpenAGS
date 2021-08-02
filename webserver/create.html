@@ -212,7 +212,12 @@
 
             request.addEventListener("load", function (e) {
                 if (request.status == 200) {
-                    window.location.replace("/projects/"+request.response["id"]+"/view")
+                    if(request.response["id"] === "error"){
+                        window.location.replace("/error/");
+                    }
+                    else{
+                        window.location.replace("/projects/"+request.response["id"]+"/view");
+                    }
                 }
                 reset();
             });

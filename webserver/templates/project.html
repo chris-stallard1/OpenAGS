@@ -241,16 +241,16 @@
                                     <div class="card card-body">
                                         <label for="fittedBgList-{{i}}">Background</label>
                                         <ul class="list-group" id="fittedBgList-{{i}}">
-                                            <li class='list-group-item compact' id="{{analysisObject.ROIs[i].get_background().to_string()}}">
-                                                <p class="bg-label">{{analysisObject.ROIs[i].get_background().to_string()}}</p>
+                                            <li class='list-group-item compact' id="{{analysisObject.ROIs[i].get_background()|string}}">
+                                                <p class="bg-label">{{analysisObject.ROIs[i].get_background()|string}}</p>
                                             </li>
                                         </ul>
                                         <label for="fittedPeaksList-{{i}}">Peaks</label>
                                         <ul class="list-group" id="fittedPeaksList-{{i}}">
                                             {% for peak in analysisObject.ROIs[i].get_peaks() %}
-                                                <li class='list-group-item compact' id="{{peak.to_string()}}">
-                                                    <p class = 'peak-label'>{{peak.to_string()}}</p>
-                                                    <img class="rmv-btn" src="/icons/file-x.svg" style="float:right;" onclick='remove_peak_from_list("{{peak.to_string()}}")'/>
+                                                <li class='list-group-item compact' id="{{peak|string}}">
+                                                    <p class = 'peak-label'>{{peak|string}}</p>
+                                                    <img class="rmv-btn" src="/icons/file-x.svg" style="float:right;" onclick='remove_peak_from_list("{{peak|string}}")'/>
                                                 </li>
                                             {% endfor %}
                                         </ul>
@@ -307,10 +307,10 @@
                                                 {% set knownPeak =  analysisObject.ROIs[i].knownPeaks[j] %}
                                                 {% set closestPeak = analysisObject.ROIs[i].get_closest_peak(knownPeak) %}
                                                 <li class="list-group-item">
-                                                    <p style="float:left;" id="{{knownPeak.get_ctr()}}">{{knownPeak.to_string()}}{{minSep}}</p>
+                                                    <p style="float:left;" id="{{knownPeak.get_ctr()}}">{{knownPeak|string}}{{minSep}}</p>
                                                     <select class="form-select w-50 peak-match-select" style="float:right;" onchange="sendMatchUpdate({{i}},{{j}});">
                                                         {% for peak in analysisObject.ROIs[i].get_peaks() %}
-                                                            <option {% if peak == closestPeak%} selected {% endif %} value="{{peak.get_ctr()}}">{{peak.to_string()}}</option>
+                                                            <option {% if peak == closestPeak%} selected {% endif %} value="{{peak.get_ctr()}}">{{peak|string}}</option>
                                                         {% endfor %}
                                                     </select>
                                                 </li>

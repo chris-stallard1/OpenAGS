@@ -41,8 +41,7 @@ class Model(ABC):
         """
         pass
     @abstractmethod
-    def to_string(self):
-        """Returns a string representation of the model."""
+    def __str__(self):
         pass
     
     #Getters and setters
