@@ -1,4 +1,4 @@
-from models import LinearBackground, QuadraticBackground, ArctanBackground, GaussianPeak, KuboSakaiBoronPeak
+from openags.models import LinearBackground, QuadraticBackground, ArctanBackground, GaussianPeak, KuboSakaiBoronPeak
 
 #Default user preferences, to be changed from settings tab
 default_prefs = {

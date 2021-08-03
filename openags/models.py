@@ -5,8 +5,8 @@ import numpy as np
 from scipy.signal import find_peaks, convolve
 from sigfig import round
 
-from baseClasses import Peak, Background, StandardPeak, BoronPeak
-from util import binary_search_find_nearest
+from openags.baseClasses import Peak, Background, StandardPeak, BoronPeak
+from openags.util import binary_search_find_nearest
 
 #Note: Docstrings for methods used here are in baseClasses.py
 

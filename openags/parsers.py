@@ -5,7 +5,7 @@ import xylib
 import numpy as np
 from openpyxl import Workbook
 
-from util import KnownPeak
+from openags.util import KnownPeak
 
 
 class SpectrumParser:

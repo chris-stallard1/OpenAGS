@@ -6,10 +6,10 @@ import numpy as np
 from scipy.optimize import curve_fit, OptimizeWarning
 from sigfig import round
 
-from util import multiple_peak_and_background, get_curve, binary_search_find_nearest, set_all_params, KnownPeak
-from constants import default_prefs, som
-from parsers import SpectrumParser, StandardsFileParser, CSVWriter, ExcelWriter
-from models import GaussianPeak, LinearBackground
+from openags.util import multiple_peak_and_background, get_curve, binary_search_find_nearest, set_all_params, KnownPeak
+from openags.constants import default_prefs, som
+from openags.parsers import SpectrumParser, StandardsFileParser, CSVWriter, ExcelWriter
+from openags.models import GaussianPeak, LinearBackground
 
 
 

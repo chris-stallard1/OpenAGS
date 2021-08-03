@@ -1,6 +1,6 @@
 import math
 from sigfig import round
-from baseClasses import Evaluator
+from openags.baseClasses import Evaluator
 
 class HBondAnalysis(Evaluator):
     """Experimental Evaluator for looking at the location of the H Peak relative to some other common ones."""

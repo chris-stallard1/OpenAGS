@@ -1,0 +1,15 @@
+README.md
+setup.py
+openags/__init__.py
+openags/backend.py
+openags/baseClasses.py
+openags/constants.py
+openags/evaluators.py
+openags/models.py
+openags/parsers.py
+openags/util.py
+openags.egg-info/PKG-INFO
+openags.egg-info/SOURCES.txt
+openags.egg-info/dependency_links.txt
+openags.egg-info/requires.txt
+openags.egg-info/top_level.txt
