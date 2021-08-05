@@ -2,6 +2,8 @@ old/
 /webserver/img/icons/*
 spectra/
 Demo/
+dist/
+openags.egg-info/
 /webserver/uploads
 /webserver/results
 __pycache__/

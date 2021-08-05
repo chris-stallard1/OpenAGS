@@ -172,7 +172,6 @@ class ActivationAnalysis:
         sortedKeys = sorted(self.knownPeaks.keys())
 
         for k in sortedKeys:
-            print(k)
             p = self.knownPeaks[k]
             if p.get_ele() in addedIsotopes or p.get_ctr() in editList:
                 if p.get_ele() == "B-11" and p.get_ctr() < 480 and p.get_ctr() > 470: #special case for boron
@@ -205,7 +204,6 @@ class ActivationAnalysis:
 
         energies = self.fileData[0]["energies"]
         cps = self.fileData[0]["cps"]
-        print(regions)
         for i in range(0,len(regions),2):
             lowerIndex = binary_search_find_nearest(energies, regions[i])
             upperIndex = binary_search_find_nearest(energies, regions[i+1])
@@ -378,7 +376,6 @@ class ROI:
             BPeak = som["peaks"][self.userPrefs["boron_peak_type"]]
             self.peaks = [BPeak.guess_params(self.energies, self.cps)]
             scrubbedCPS = BPeak.remove_from_data(self.energies, self.cps)
-            print(scrubbedCPS)
             self.peaks += som["peaks"][self.userPrefs["peak_type"]].guess_params(self.energies, scrubbedCPS)
         else:
             self.peaks = som["peaks"][self.userPrefs["peak_type"]].guess_params(self.energies, self.cps)
