@@ -2,25 +2,25 @@ from openags.models import LinearBackground, QuadraticBackground, ArctanBackgrou
 
 #Default user preferences, to be changed from settings tab
 default_prefs = {
-    "peak_type" : "gaussian",
-    "boron_peak_type" : "kubo_sakai",
-    "background_type" : "linear",
-    "overlap_rois" : True,
-    "roi_width" : 15,
-    "B_roi_width" : 20
+    "Peak Type" : "Simple Gaussian",
+    "Boron Peak Type" : "Physical B-11",
+    "Background Type" : "linear",
+    "Overlap ROIs" : True,
+    "ROI Width (keV)" : 15,
+    "B-11 ROI Width (keV)" : 20
 }
 
 #String-Object Map: used for UI interactions, makes a lot of things easier & allows for peaks/background types to be interchangeable
 som = {
     "backgrounds":
     {
-        "linear":LinearBackground,
-        "quadratic":QuadraticBackground,
-        "arctan" : ArctanBackground
+        "Linear":LinearBackground,
+        "Quadratic":QuadraticBackground,
+        "Arctan" : ArctanBackground
     },
     "peaks":
     {
-        "gaussian":GaussianPeak,
-        "kubo_sakai":KuboSakaiBoronPeak
+        "Simple Gaussian":GaussianPeak,
+        "Physical B-11":KuboSakaiBoronPeak
     }
 }

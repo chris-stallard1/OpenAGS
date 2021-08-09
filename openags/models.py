@@ -34,7 +34,7 @@ class LinearBackground(Background):
         return ["Point 1 Energy", "Point 2 Energy"]
 
     def get_type(self):
-        return "linear"
+        return "Linear"
 
     def get_num_params(self):
         return 2
@@ -104,7 +104,7 @@ class QuadraticBackground(Background):
         return ["Point 1 Energy", "Point 2 Energy"]
 
     def get_type(self):
-        return "quadratic"
+        return "Quadratic"
 
     def get_num_params(self):
         return 3
@@ -172,7 +172,7 @@ class ArctanBackground(Background):
         return ["Point 1 Energy", "Point 2 Energy"]
 
     def get_type(self):
-        return "arctan"
+        return "Arctan"
 
     def get_num_params(self):
         return 3
@@ -248,7 +248,7 @@ class GaussianPeak(StandardPeak):
         return ["Center (keV): ", "Amplitude (cps): "]
 
     def get_type(self):
-        return "gaussian"
+        return "Simple Gaussian"
 
     def get_num_params(self):
         return 3
@@ -344,7 +344,7 @@ class KuboSakaiBoronPeak(BoronPeak):
         return ["Center (keV)", "Max Amplitude"]
 
     def get_type(self):
-        return "kubo_sakai"
+        return "Physical B-11"
 
     def get_num_params(self):
         return 4
@@ -452,7 +452,7 @@ class ApproxBoronPeak(BoronPeak):
         return ["Center (keV)", "Max Amplitude"]
 
     def get_type(self):
-        return "approx_boron"
+        return "B-11 Approximation"
 
     def get_num_params(self):
         return 4
