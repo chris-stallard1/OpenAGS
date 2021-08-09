@@ -1,7 +1,7 @@
 from setuptools import setup
 setup(
     name="openags",
-    version='0.1.6',
+    version='0.1.7',
     packages=['openags'],
     install_requires=['scipy','numpy','sigfig','xylib-py-wheels'],
     classifiers=[
@@ -16,4 +16,3 @@ setup(
       license='MIT',
       url='https://github.com/chris-stallard1/OpenAGS'
       )
-      

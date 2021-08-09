@@ -4,7 +4,7 @@ from openags.models import LinearBackground, QuadraticBackground, ArctanBackgrou
 default_prefs = {
     "Peak Type" : "Simple Gaussian",
     "Boron Peak Type" : "Physical B-11",
-    "Background Type" : "linear",
+    "Background Type" : "Linear",
     "Overlap ROIs" : True,
     "ROI Width (keV)" : 15,
     "B-11 ROI Width (keV)" : 20
