@@ -175,11 +175,11 @@ class ActivationAnalysis:
             p = self.knownPeaks[k]
             if p.get_ele() in addedIsotopes or p.get_ctr() in editList:
                 if p.get_ele() == "B-11" and p.get_ctr() < 480 and p.get_ctr() > 470: #special case for boron
-                    lowerBound = max(p.get_ctr() - self.userPrefs["B_roi_width"], 0)
-                    upperBound = min(p.get_ctr() + self.userPrefs["B_roi_width"], self.fileData[0]["energies"][-1])
+                    lowerBound = max(p.get_ctr() - self.userPrefs["B-11 ROI Width (keV)"], 0)
+                    upperBound = min(p.get_ctr() + self.userPrefs["B-11 ROI Width (keV)"], self.fileData[0]["energies"][-1])
                 else:
-                    lowerBound = max(p.get_ctr() - self.userPrefs["roi_width"], 0)
-                    upperBound = min(p.get_ctr() + self.userPrefs["roi_width"], self.fileData[0]["energies"][-1])
+                    lowerBound = max(p.get_ctr() - self.userPrefs["ROI Width (keV)"], 0)
+                    upperBound = min(p.get_ctr() + self.userPrefs["ROI Width (keV)"], self.fileData[0]["energies"][-1])
                 
                 regions.append(lowerBound)
                 regions.append(upperBound)
@@ -189,7 +189,7 @@ class ActivationAnalysis:
                 upperIndex = binary_search_find_nearest(sortedKeys, upperBound)
                 otherPeaks.append([self.knownPeaks[e] for e in sortedKeys[lowerIndex:upperIndex]])
 
-        if self.userPrefs["overlap_rois"]:
+        if self.userPrefs["Overlap ROIs"]:
             i=0
             while i < len(regions) - 1:
                 if regions[i] > regions[i+1]: #if there is an overlap, delete both points that overlap, leaving a single, larger region
@@ -373,16 +373,16 @@ class ROI:
     def add_peaks(self):
         """Find and add peaks to own model (guesss params)"""
         if self.boronROI:
-            BPeak = som["peaks"][self.userPrefs["boron_peak_type"]]
+            BPeak = som["peaks"][self.userPrefs["Boron Peak Type"]]
             self.peaks = [BPeak.guess_params(self.energies, self.cps)]
             scrubbedCPS = BPeak.remove_from_data(self.energies, self.cps)
-            self.peaks += som["peaks"][self.userPrefs["peak_type"]].guess_params(self.energies, scrubbedCPS)
+            self.peaks += som["peaks"][self.userPrefs["Peak Type"]].guess_params(self.energies, scrubbedCPS)
         else:
-            self.peaks = som["peaks"][self.userPrefs["peak_type"]].guess_params(self.energies, self.cps)
+            self.peaks = som["peaks"][self.userPrefs["Peak Type"]].guess_params(self.energies, self.cps)
    
     def add_bg(self):
         """Find and add background to own model (guesss params)"""
-        self.bg = som["backgrounds"][self.userPrefs["background_type"]].guess_params(self.energies, self.cps)
+        self.bg = som["backgrounds"][self.userPrefs["Background Type"]].guess_params(self.energies, self.cps)
 
     def fit(self, reanalyze = False):
         """Fit our model to the data within the ROI, using the guessed params as initial ones"""
