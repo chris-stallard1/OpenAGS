@@ -244,6 +244,7 @@ class ActivationAnalysis:
     def run_evaluators(self, evaluators, e_args):
         """Run a list of evaluators on our ROIs, with arguments specified in the list e_args"""
         ROIsToEval = [r for r in self.ROIs if r.fitted]
+        successfulROIs = []
         for i in range(len(self.fileData)):
             if i != 0:
                 energies = self.fileData[i]["energies"]
@@ -255,8 +256,12 @@ class ActivationAnalysis:
                     bounds = r.get_range()
                     lowerIndex = binary_search_find_nearest(energies, bounds[0])
                     upperIndex = binary_search_find_nearest(energies, bounds[1])
-                    r.reanalyze(energies[lowerIndex:upperIndex], cps[lowerIndex:upperIndex])
-            self.fileData[i]["results"] = [e(ROIsToEval).get_results(*args) for e, args in zip(evaluators, e_args)]
+                    try:
+                        r.reanalyze(energies[lowerIndex:upperIndex], cps[lowerIndex:upperIndex])
+                        successfulROIs.append(r)
+                    except Exception:
+                        continue
+            self.fileData[i]["results"] = [e(successfulROIs).get_results(*args) for e, args in zip(evaluators, e_args)]
             self.fileData[i]["resultHeadings"] = [e.get_headings(ROIsToEval[0]) for e in evaluators]
             self.fileData[i]["evaluatorNames"] = [e.get_name() for e in evaluators]
         self.resultsGenerated = True
