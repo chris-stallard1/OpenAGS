@@ -244,8 +244,8 @@ class ActivationAnalysis:
     def run_evaluators(self, evaluators, e_args):
         """Run a list of evaluators on our ROIs, with arguments specified in the list e_args"""
         ROIsToEval = [r for r in self.ROIs if r.fitted]
-        successfulROIs = []
         for i in range(len(self.fileData)):
+            successfulROIs = []
             if i != 0:
                 energies = self.fileData[i]["energies"]
                 cps = self.fileData[i]["cps"]
