@@ -261,6 +261,8 @@ class ActivationAnalysis:
                         successfulROIs.append(r)
                     except Exception:
                         continue
+            else:
+                successfulROIs = ROIsToEval
             self.fileData[i]["results"] = [e(successfulROIs).get_results(*args) for e, args in zip(evaluators, e_args)]
             self.fileData[i]["resultHeadings"] = [e.get_headings(ROIsToEval[0]) for e in evaluators]
             self.fileData[i]["evaluatorNames"] = [e.get_name() for e in evaluators]
