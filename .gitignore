@@ -1,10 +1,8 @@
 old/
-/webserver/img/icons/*
 spectra/
 Demo/
 dist/
-openags.egg-info/
-/webserver/uploads
-/webserver/results
+build/
+*.egg-info/
 __pycache__/
 *.json

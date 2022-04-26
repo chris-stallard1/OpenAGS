@@ -66,10 +66,14 @@ class MassSensEval(Evaluator):
             for p in r.get_peak_pairs():
                 peak_results = p[1].get_results(p[0].get_area(), p[0].get_area_stdev())
                 output = p[1].get_output()
-                if output == "Peak Area (cps)":
-                    formatted_results = [round(float(peak_results[0]), uncertainty = 2 * float(peak_results[1]), sep=list)[0], round(float(peak_results[1]), sigfigs = 3)]
-                    results.append([p[1].get_ele(), round(float(p[0].get_ctr()), decimals=2), p[0].get_fwhm(), *formatted_results])
-                else:
-                    formatted_results = [round(float(peak_results[0]), uncertainty = 2 * float(peak_results[1]), sep=list)[0], round(float(peak_results[1]), sigfigs = 3)]
-                    results.append([p[1].get_ele(), round(float(p[0].get_ctr()), decimals=2), round(float(p[0].get_area()), decimals=2), p[0].get_fwhm(), *formatted_results])
+                try:
+                    if output == "Peak Area (cps)":
+                        formatted_results = [round(float(peak_results[0]), uncertainty = 2 * float(peak_results[1]), sep=list)[0], round(float(peak_results[1]), sigfigs = 3)]
+                        results.append([p[1].get_ele(), round(float(p[0].get_ctr()), decimals=2), p[0].get_fwhm(), *formatted_results])
+                    else:
+                        formatted_results = [round(float(peak_results[0]), uncertainty = 2 * float(peak_results[1]), sep=list)[0], round(float(peak_results[1]), sigfigs = 3)]
+                        results.append([p[1].get_ele(), round(float(p[0].get_ctr()), decimals=2), round(float(p[0].get_area()), decimals=2), p[0].get_fwhm(), *formatted_results])
+                except Exception as e:
+                    print(f"Warning: {e}")
+                    results.append([p[1].get_ele(), round(float(p[0].get_ctr()), decimals=2), "Error", "Error", "Error", "Error"])
         return results

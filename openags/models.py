@@ -276,13 +276,13 @@ class GaussianPeak(StandardPeak):
     #Model Methods
 
     def get_area(self):
-        return self.amp * self.wid * math.sqrt(2*math.pi)
+        return self.amp * abs(self.wid) * math.sqrt(2*math.pi)
 
     def get_area_stdev(self):
         return self.get_area() * math.sqrt((self.ampVar/self.amp)**2+(self.widVar/self.wid)**2)
     
     def get_fwhm(self):
-        return round(float(self.wid * 2 * math.sqrt(math.log(2))), decimals=2)
+        return round(float(abs(self.wid) * 2 * math.sqrt(math.log(2))), decimals=2)
 
     def get_ydata(self, xdata):
         xdata = np.array(xdata)

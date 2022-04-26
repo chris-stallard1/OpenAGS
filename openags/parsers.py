@@ -13,7 +13,12 @@ class SpectrumParser:
     def __init__(self, fname):
         self.fname = fname
         if self.fname.split(".")[-1].lower() == "spe":
-            self.speFile = True
+            with open(self.fname) as f:
+                firstLine = f.readline()
+                if firstLine[0] == "$":
+                    self.speFile = True
+                else:
+                    self.speFile = False
         else:
             self.speFile = False
     def getValues(self):
