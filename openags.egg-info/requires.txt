@@ -1,4 +1,0 @@
-numpy
-scipy
-sigfig
-xylib-py-wheels

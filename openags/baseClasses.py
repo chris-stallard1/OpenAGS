@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 class Model(ABC):
-    """Defines some standard functions for peaks/background models to rpevent code reuse"""
+    """Defines some standard functions for peaks/background models to prevent code reuse"""
     def __init__(self):
         super().__init__()
     

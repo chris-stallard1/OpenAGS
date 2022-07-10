@@ -5,7 +5,7 @@ import numpy as np
 from scipy.signal import find_peaks, convolve
 from sigfig import round
 
-from openags.baseClasses import Peak, Background, StandardPeak, BoronPeak
+from openags.baseClasses import Background, StandardPeak, BoronPeak
 from openags.util import binary_search_find_nearest
 
 #Note: Docstrings for methods used here are in baseClasses.py
@@ -220,7 +220,7 @@ class ArctanBackground(Background):
     
 
 class GaussianPeak(StandardPeak):
-    def __init__(self, ctr=0, amp=0, wid = 1, variances = []):
+    def __init__(self, ctr=0, amp=0, wid=1, variances=()):
         super().__init__()
         self.ctr = ctr
         self.amp = amp
@@ -230,7 +230,7 @@ class GaussianPeak(StandardPeak):
         self.widVar = None
         self.originalParams = [ctr, amp, wid]
         self.originalVariances = variances
-        if variances != []:
+        if variances:
             self.set_variances(variances)
         
     #Static Methods and Basic Info Functions

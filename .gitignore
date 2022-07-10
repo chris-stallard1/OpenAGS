@@ -3,6 +3,6 @@ spectra/
 Demo/
 dist/
 build/
-*.egg-info/
 __pycache__/
 *.json
+openags/.idea/

@@ -3,6 +3,7 @@ import os
 
 import xylib
 import numpy as np
+from scipy.interpolate import interp1d
 from openpyxl import Workbook
 
 from openags.util import KnownPeak
@@ -54,31 +55,33 @@ class SpectrumParser:
 
 class StandardsFileParser:
     """Parser for standards files with peak locations, sensitivities, etc."""
-    def __init__(self,fname: str):
-        self.fname = fname
+    def __init__(self, k0_fname: str, eff_fname: str, flux=1):
+        self.k0_fname = k0_fname
+        self.eff_fname = eff_fname
+        self.flux = flux
         self.peaks = None
     def extract_peaks(self, delayed):
-        if self.peaks != None:
+        if self.peaks is not None:
             return self.peaks
-        with open(self.fname) as f:
-            lines = f.readlines()
-        headings = re.sub(r'[^\x00-\x7F]+','', lines[0]).strip().split(",") #Eliminate non-ASCII characters
-        lines = [line.split(",") for line in lines[1:]]
+        with open(self.k0_fname) as f:
+            k0_lines = f.readlines()
+        k0_headings = re.sub(r'[^\x00-\x7F]+', '', k0_lines[0]).strip().split(",") #Eliminate non-ASCII characters
+        k0_lines = [line.split(",") for line in k0_lines[1:]]
         try:
-            peakIndex = headings.index("Energy (keV)")
-            isoIndex = headings.index("Isotope")
+            peakIndex = k0_headings.index("Energy (keV)")
+            isoIndex = k0_headings.index("Isotope")
         except:
-            raise ValueError("Bad Sensitivity File Format.") # Those 2 headings are necessary
+            raise ValueError("Bad k0 File Format.") # Those 2 headings are necessary
         #set of Regexes to test the other headings with
         reMass = re.compile(r"Mass \((\w+)\)")
-        reSens = re.compile (r"Sensitivity \(cps/(\w+)\)")
+        rek0 = re.compile (r"k0\w*")
         reHalfLife = re.compile(r"[Hh]alf-[Ll]ife \((\w+)\)")
         reDecayConstant = re.compile(r"[Dd]ecay [Cc]onstant \(1/(\w+)\)")
 
         #indexes to headings for each thing
         halfLifeIndex=None
         decayConstantIndex = None
-        sensIndex = None
+        k0Index = None
         massIndex = None
 
         #Booleans telling us whether half-life/decay constant is used and whether sensitivity/mass is used.
@@ -88,14 +91,14 @@ class StandardsFileParser:
         #Units for mass and decay time
         unit = None
         decayUnit = None
-        for i,h in enumerate(headings):
-            if reMass.match(h) != None:
+        for i,h in enumerate(k0_headings):
+            if reMass.match(h) is not None:
                 useSensitivity = False
                 massIndex = i
                 unit = reMass.match(h).group(1)
-            elif reSens.match(h) != None:
+            elif rek0.match(h) is not None:
                 useSensitivity = True
-                sensIndex = i
+                k0Index = i
                 unit = reSens.match(h).group(1)
             elif reDecayConstant.match(h):
                 decayConstant = True
@@ -105,29 +108,41 @@ class StandardsFileParser:
                 decayConstant = False
                 decayUnit = reHalfLife.match(h).group(1)
                 halfLifeIndex = i
-        
+
+        with open(self.eff_fname) as f:
+            eff_lines = f.readlines()
+        eff_headings = re.sub(r'[^\x00-\x7F]+', '', eff_lines[0]).strip().lower().split(",") #Eliminate non-ASCII characters
+        eff_lines = [line.split(",") for line in k0_lines[1:]]
+        try:
+            effEnergyIndex = eff_headings.index("energy (kev)")
+            effIndex = eff_headings.index("efficiency")
+        except:
+            raise ValueError("Bad Efficiency Table Format.") # Those 2 headings are necessary
+
+        eff_fn = interp1d([float(l[effEnergyIndex]) for l in eff_lines], [float(l[effIndex]) for l in eff_lines])
+
         #Create the known peak lists
-        if useSensitivity == None:
-            self.peaks = [KnownPeak(l[isoIndex],float(l[peakIndex])) for l in lines]
+        if useSensitivity is None:
+            self.peaks = [KnownPeak(l[isoIndex],float(l[peakIndex])) for l in k0_lines]
         elif useSensitivity:
-            self.peaks = [KnownPeak(l[isoIndex],float(l[peakIndex]), sensitivity = float(l[sensIndex]), unit=unit) for l in lines]
+            self.peaks = [KnownPeak(l[isoIndex],float(l[peakIndex]), sensitivity = float(l[k0Index]) * flux * eff_fn(float(l[energyIndex])) / 4.987, unit=unit) for l in k0_lines]
         else:
-            self.peaks = [KnownPeak(l[isoIndex],float(l[peakIndex]), mass = float(l[massIndex]), unit=unit) for l in lines]
+            self.peaks = [KnownPeak(l[isoIndex],float(l[peakIndex]), mass = float(l[massIndex]), unit=unit) for l in k0_lines]
         
         #Adding the NAA parameters if needed
         if delayed:
-            if decayConstant == None:
+            if decayConstant is None:
                 raise ValueError("Delayed analysis, must provide half-life or decay constant in sensitivity file")
             elif decayConstant:
                 for i in range(len(self.peaks)):
-                    self.peaks[i].set_NAA_params(decayConstant = lines[i][decayConstantIndex], unit=decayUnit)
+                    self.peaks[i].set_NAA_params(decayConstant = k0_lines[i][decayConstantIndex], unit=decayUnit)
             else:
                 for i in range(len(self.peaks)):
-                    self.peaks[i].set_NAA_params(halfLife = lines[i][halfLifeIndex], unit=decayUnit)
+                    self.peaks[i].set_NAA_params(halfLife = k0_lines[i][halfLifeIndex], unit=decayUnit)
         return self.peaks
 
 class CSVWriter:
-    """Writes a CSV file with name fname to the results/projectID directory.
+    """Writes a CSV file with name k0_fname to the results/projectID directory.
     
     The first row of the file contains column headings specified in headings.
     All remaining data is specified in data.
